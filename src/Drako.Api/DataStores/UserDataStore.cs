@@ -15,6 +15,36 @@ namespace Drako.Api.DataStores
         {
             _options = options;
         }
+
+        public async Task SaveUserAsync(string userTwitchId, string loginName, string displayName, string accessToken,
+            string refreshToken, DateTime tokenExpiry)
+        {
+            const string sql = @"
+                INSERT INTO Users (UserTwitchId, LoginName, DisplayName, AccessToken, RefreshToken, TokenExpiry, LastUpdated)
+                SELECT @userTwitchId, @loginName, @displayName, @accessToken, @refreshToken, @tokenExpiry, @date
+                ON CONFLICT (UserTwitchId) DO UPDATE
+                SET LoginName = @loginName,
+                    DisplayName = @displayName,
+                    AccessToken = @accessToken,
+                    RefreshToken = @refreshToken,
+                    TokenExpiry = @tokenExpiry,
+                    LastUpdated = @date
+                ";
+            
+            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+            await connection.ExecuteAsync(
+                sql,
+                new
+                {
+                    userTwitchId,
+                    loginName,
+                    displayName,
+                    accessToken,
+                    refreshToken,
+                    tokenExpiry,
+                    date = DateTime.UtcNow
+                });
+        }
         
         public async Task<long> GetCurrencyAsync(string userTwitchId)
         {
@@ -35,14 +65,14 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH up AS (
-                    INSERT INTO ChannelUserCurrencies (Balance, UserTwitchId, LastUpdated)
+                    INSERT INTO Users (Balance, UserTwitchId, LastUpdated)
                     SELECT @amount, @userTwitchId, @date
                     ON CONFLICT (UserTwitchId) DO UPDATE
                     SET Balance = ChannelUserCurrencies.Balance + @amount,
                         LastUpdated = @date
                     RETURNING UserTwitchId, Balance
                 ), i AS (
-                    INSERT INTO ChannelCurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
+                    INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
                     SELECT up.UserTwitchId, @date, @amount, up.Balance, @reason
                     FROM up
                 )
@@ -50,7 +80,7 @@ namespace Drako.Api.DataStores
                 ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            connection.QueryAsync(sql, new
+            await connection.QueryAsync(sql, new
             {
                 userTwitchId,
                 amount,
@@ -63,13 +93,13 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH up AS (
-                    UPDATE ChannelUserCurrencies
+                    UPDATE Users 
                     SET Balance = Balance - @amount,
                         LastUpdated = @date
                     WHERE UserTwitchId = @userTwitchId
                     RETURNING UserTwitchId, Balance
                 ), i AS (
-                    INSERT INTO ChannelCurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
+                    INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
                     SELECT up.UserTwitchId, @date, -@amount, up.Balance, reason
                     FROM up
                 )

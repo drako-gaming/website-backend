@@ -27,7 +27,7 @@ namespace Drako.Api.Controllers
             var status = await _bettingDataStore.GetBettingStatusAsync();
             var options = await _bettingDataStore.GetOptionsAsync();
             var winner = await _bettingDataStore.GetWinnerAsync();
-            
+
             return Ok(
                 new BettingResource
                 {

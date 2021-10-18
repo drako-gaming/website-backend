@@ -20,7 +20,11 @@ namespace Drako.Api
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHost(wb =>
                 {
-                    wb.ConfigureAppConfiguration(cb => cb.AddEnvironmentVariables());
+                    wb.ConfigureAppConfiguration(cb =>
+                    {
+                        cb.AddEnvironmentVariables();
+                        cb.AddJsonFile("appSettings.json", true);
+                    });
                 })
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); });
     }
