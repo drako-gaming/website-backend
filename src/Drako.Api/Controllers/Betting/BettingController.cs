@@ -2,8 +2,10 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Drako.Api.DataStores;
+using Drako.Api.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Drako.Api.Controllers
 {
@@ -14,11 +16,16 @@ namespace Drako.Api.Controllers
     {
         private readonly BettingDataStore _bettingDataStore;
         private readonly UserDataStore _userDataStore;
+        private readonly IHubContext<UserHub, IUserHub> _userHub;
 
-        public BettingController(BettingDataStore bettingDataStore, UserDataStore userDataStore)
+        public BettingController(
+            BettingDataStore bettingDataStore,
+            UserDataStore userDataStore,
+            IHubContext<UserHub, IUserHub> userHub)
         {
             _bettingDataStore = bettingDataStore;
             _userDataStore = userDataStore;
+            _userHub = userHub;
         }
         
         [HttpGet]
@@ -59,7 +66,7 @@ namespace Drako.Api.Controllers
             await _bettingDataStore.SetOptionsAsync(model.Options);
             await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Open);
             
-            // TODO: Send SignalR notification
+            await _userHub.Clients.All.BetStatusChanged();
             return await Status();
         }
 
@@ -75,7 +82,7 @@ namespace Drako.Api.Controllers
 
             await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Closed);
             
-            // TODO: Send SignalR notification
+            await _userHub.Clients.All.BetStatusChanged();
             return await Status();
         }
 
@@ -109,7 +116,7 @@ namespace Drako.Api.Controllers
                 await _userDataStore.AddCurrencyAsync(winningBet.UserTwitchId, payout, "Betting payout");
             }
 
-            // TODO: Send SignalR notification
+            await _userHub.Clients.All.BetStatusChanged();
             return await Status();
         }
 

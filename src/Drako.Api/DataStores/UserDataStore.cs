@@ -1,7 +1,10 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Drako.Api.Configuration;
+using Drako.Api.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -10,24 +13,22 @@ namespace Drako.Api.DataStores
     public class UserDataStore
     {
         private readonly IOptions<DatabaseOptions> _options;
+        private readonly IHubContext<UserHub, IUserHub> _userHub;
 
-        public UserDataStore(IOptions<DatabaseOptions> options)
+        public UserDataStore(IOptions<DatabaseOptions> options, IHubContext<UserHub, IUserHub> userHub)
         {
             _options = options;
+            _userHub = userHub;
         }
 
-        public async Task SaveUserAsync(string userTwitchId, string loginName, string displayName, string accessToken,
-            string refreshToken, DateTime tokenExpiry)
+        public async Task SaveUserAsync(string userTwitchId, string loginName, string displayName)
         {
             const string sql = @"
-                INSERT INTO Users (UserTwitchId, LoginName, DisplayName, AccessToken, RefreshToken, TokenExpiry, LastUpdated)
-                SELECT @userTwitchId, @loginName, @displayName, @accessToken, @refreshToken, @tokenExpiry, @date
+                INSERT INTO Users (UserTwitchId, LoginName, DisplayName, LastUpdated)
+                SELECT @userTwitchId, @loginName, @displayName, @date
                 ON CONFLICT (UserTwitchId) DO UPDATE
                 SET LoginName = @loginName,
                     DisplayName = @displayName,
-                    AccessToken = @accessToken,
-                    RefreshToken = @refreshToken,
-                    TokenExpiry = @tokenExpiry,
                     LastUpdated = @date
                 ";
             
@@ -39,9 +40,6 @@ namespace Drako.Api.DataStores
                     userTwitchId,
                     loginName,
                     displayName,
-                    accessToken,
-                    refreshToken,
-                    tokenExpiry,
                     date = DateTime.UtcNow
                 });
         }
@@ -75,18 +73,21 @@ namespace Drako.Api.DataStores
                     INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
                     SELECT up.UserTwitchId, @date, @amount, up.Balance, @reason
                     FROM up
+                    RETURNING Id, Balance
                 )
-                SELECT Balance FROM up;
+                SELECT Id, Balance FROM i;
                 ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            await connection.QueryAsync(sql, new
+            var result = (await connection.QueryAsync(sql, new
             {
                 userTwitchId,
                 amount,
                 reason,
                 date = DateTime.UtcNow
-            });
+            })).FirstOrDefault();
+
+            await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
         }
 
         public async Task RemoveCurrencyAsync(string userTwitchId, int amount, string reason)
@@ -102,18 +103,21 @@ namespace Drako.Api.DataStores
                     INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
                     SELECT up.UserTwitchId, @date, -@amount, up.Balance, reason
                     FROM up
+                    RETURNING Id, Balance
                 )
-                SELECT UserTwitchId, Balance FROM up;
+                SELECT id, Balance FROM i;
                 ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            await connection.QueryAsync(sql, new
+            var result = (await connection.QueryAsync(sql, new
             {
                 userTwitchId,
                 amount,
                 reason,
                 date = DateTime.UtcNow
-            });
+            })).FirstOrDefault();
+            
+            await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
         }
     }
 }

@@ -49,14 +49,10 @@ namespace Drako.Api.Controllers.Authentication
                 redirectUri = "/";
             }
 
-            AuthenticateResult auth = await this.HttpContext.AuthenticateAsync("Twitch");
-            var accessToken = auth.Properties.Items[".Token.access_token"];
-            var refreshToken = auth.Properties.Items[".Token.refresh_token"];
-            var tokenExpiry = DateTime.Parse(auth.Properties.Items[".Token.expires_at"]);
             var userTwitchId = User.FindFirst(x => x.Type == ClaimTypes.NameIdentifier)?.Value;
             var loginName = User.FindFirst(x => x.Type == ClaimTypes.Name)?.Value;
             var displayName = User.FindFirst(x => x.Type == "urn:twitch:displayname")?.Value;
-            await _userDataStore.SaveUserAsync(userTwitchId, loginName, displayName, accessToken, refreshToken, tokenExpiry);
+            await _userDataStore.SaveUserAsync(userTwitchId, loginName, displayName);
             return Redirect(redirectUri);
         }
         

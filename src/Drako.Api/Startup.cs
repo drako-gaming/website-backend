@@ -1,4 +1,6 @@
 using AspNet.Security.OAuth.Twitch;
+using Drako.Api.DataStores;
+using Drako.Api.Hubs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -22,6 +24,7 @@ namespace Drako.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            services.AddSignalR();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Drako.Api", Version = "v1" });
@@ -37,13 +40,16 @@ namespace Drako.Api
                 })
                 .AddTwitch("Twitch", options =>
                 {
-                    options.SaveTokens = true;
-                    //options.Scope.Clear();
-                    //options.Scope.Add("email");
+                    options.ForceVerify = true;
+                    options.SaveTokens = false;
+                    options.Scope.Clear();
                 });
 
             services.AddOptions<TwitchAuthenticationOptions>(TwitchAuthenticationDefaults.AuthenticationScheme)
                 .Bind(Configuration.GetSection("twitch"));
+
+            services.AddSingleton<UserDataStore>();
+            services.AddSingleton<BettingDataStore>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -63,7 +69,11 @@ namespace Drako.Api
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+                endpoints.MapHub<UserHub>("/userHub");
+            });
         }
     }
 }
