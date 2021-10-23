@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+docker-compose run migrations create -ext sql -dir /migrations $1

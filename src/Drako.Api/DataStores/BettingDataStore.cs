@@ -23,8 +23,8 @@ namespace Drako.Api.DataStores
         public async Task<string> GetBettingStatusAsync()
         {
             const string sql = @"
-                SELECT Status FROM ChannelGames g
-                INNER JOIN Junk j ON j.Name = 'ActiveBetId' AND j.Value = g.Id
+                SELECT status FROM games g
+                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = g.Id
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -37,22 +37,22 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH cg AS (
-                    INSERT INTO ChannelGames (Status, Options)
+                    INSERT INTO games (status, options)
                     SELECT @status, NULL
                     WHERE 'Opening' = @status
                     RETURNING *
                 )
-                UPDATE Junk
-                SET Value = cg.Id
+                UPDATE junk
+                SET value = cg.Id
                 FROM cg
-                WHERE Name = 'ActiveBetId';
+                WHERE name = 'ActiveBetId';
 
-                UPDATE ChannelGames g
-                SET Status = @status
-                FROM Junk j 
+                UPDATE games g
+                SET status = @status
+                FROM junk j 
                 WHERE 
-                    j.Name = 'ActiveBetId'
-                    AND g.Id = j.Value;
+                    j.name = 'ActiveBetId'
+                    AND g.id = j.value;
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -70,10 +70,10 @@ namespace Drako.Api.DataStores
         public async Task<int?> GetWinnerAsync()
         {
             const string sql = @"
-                        SELECT Winner
-                        FROM ChannelGames cg
-                        INNER JOIN Junk j
-                        ON j.Name = 'ActiveBetId' AND j.Value = cg.Id
+                        SELECT winner
+                        FROM games cg
+                        INNER JOIN junk j
+                        ON j.name = 'ActiveBetId' AND j.value = cg.id
                     ";
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
             return await connection.ExecuteScalarAsync<int?>(sql);
@@ -82,9 +82,9 @@ namespace Drako.Api.DataStores
         public async Task<bool> HasUserAlreadyBetAsync(string userTwitchId)
         {
             const string sql = @"
-                SELECT COUNT(cw.Id) FROM ChannelWagers cw
-                INNER JOIN Junk j ON j.Name = 'ActiveBetId' AND j.Value = cw.GameId
-                WHERE cw.UserTwitchId = @userTwitchId;
+                SELECT COUNT(cw.Id) FROM wagers cw
+                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = cw.game_id
+                WHERE cw.user_twitch_id = @userTwitchId;
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -99,11 +99,11 @@ namespace Drako.Api.DataStores
             int winner)
         {
             const string sql = @"
-                        UPDATE ChannelGames cg
-                        SET Winner = @winner
-                        FROM Junk j
-                        WHERE j.Name = 'ActiveBetId'
-                        AND j.Value = cg.Id
+                        UPDATE games cg
+                        SET winner = @winner
+                        FROM junk j
+                        WHERE j.name = 'ActiveBetId'
+                        AND j.value = cg.Id
                     ";
             await using (var connection = new NpgsqlConnection(_options.Value.ConnectionString))
             {
@@ -125,8 +125,8 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 SELECT Options
-                FROM ChannelGames cg
-                INNER JOIN Junk j ON j.Name = 'ActiveBetId' AND j.Value = cg.Id
+                FROM games cg
+                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = cg.id
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -152,12 +152,12 @@ namespace Drako.Api.DataStores
         public async Task SetMaximumBetAsync(int maximumBet)
         {
             const string sql = @"
-                UPDATE ChannelGames g
-                SET MaximumBet = @maximumBet
-                FROM Junk
+                UPDATE games g
+                SET maximum_bet = @maximumBet
+                FROM junk
                 WHERE
-                    j.Name = 'ActiveBetId'
-                    AND g.Id = j.Value;
+                    j.name = 'ActiveBetId'
+                    AND g.id = j.value;
             ";
             
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -175,11 +175,11 @@ namespace Drako.Api.DataStores
         public async Task SetOptionsAsync(IList<BettingOption> options)
         {
             const string sql = @"
-                UPDATE ChannelGames cg
+                UPDATE games cg
                 SET Options = @options
-                FROM Junk j
-                WHERE j.Name = 'ActiveBetId'
-                AND j.Value = cg.Id
+                FROM junk j
+                WHERE j.name = 'ActiveBetId'
+                AND j.value = cg.id
             ";
             
             var fullOptions = options
@@ -201,10 +201,10 @@ namespace Drako.Api.DataStores
         public async Task RecordBetAsync(string userTwitchId, int optionId, int amount)
         {
             const string sql = @"
-                INSERT INTO ChannelWagers (GameId, UserTwitchId, Amount, Option)
-                SELECT j.Value, @userTwitchId, @Amount, @OptionId
-                FROM Junk j
-                WHERE j.Name = 'ActiveBetId'
+                INSERT INTO wagers (game_id, user_twitch_id, amount, option)
+                SELECT j.value, @userTwitchId, @Amount, @OptionId
+                FROM junk j
+                WHERE j.name = 'ActiveBetId'
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -224,10 +224,11 @@ namespace Drako.Api.DataStores
         public async Task<IList<BetResource>> GetBetsAsync()
         {
             const string sql = @"
-                SELECT cw.UserTwitchId, Amount, Option as Pick
-                FROM ChannelWagers cw
-                INNER JOIN Junk j on j.Name = 'ActiveBetId'
-                    AND j.Value = cw.GameId
+                SELECT user_twitch_id, amount, option 
+                FROM wagers w
+                INNER JOIN users u ON u.id = w.user_id
+                INNER JOIN junk j on j.name = 'ActiveBetId'
+                    AND j.value = w.game_id
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -237,7 +238,7 @@ namespace Drako.Api.DataStores
                 .Select(x => new BetResource
                 {
                     Amount = x.Item1.amount,
-                    OptionId = int.Parse(x.pick),
+                    OptionId = int.Parse(x.option),
                     UserTwitchId = x.usertwitchid
                 })
                 .ToList();

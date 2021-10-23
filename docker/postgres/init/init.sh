@@ -1,0 +1,20 @@
+psql <<- EOSQL
+    CREATE USER DrakoApi WITH
+    ENCRYPTED PASSWORD '$USER_PASSWORD'
+    LOGIN
+    NOSUPERUSER
+    INHERIT
+    NOCREATEDB
+    NOCREATEROLE
+    NOREPLICATION;
+EOSQL
+
+psql <<- EOSQL
+    CREATE DATABASE DrakoApi
+    WITH OWNER = drakoapi
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1;
+EOSQL

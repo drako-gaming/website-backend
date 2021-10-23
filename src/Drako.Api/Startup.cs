@@ -1,4 +1,5 @@
 using AspNet.Security.OAuth.Twitch;
+using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Drako.Api.Hubs;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -47,6 +48,9 @@ namespace Drako.Api
 
             services.AddOptions<TwitchAuthenticationOptions>(TwitchAuthenticationDefaults.AuthenticationScheme)
                 .Bind(Configuration.GetSection("twitch"));
+            
+            services.AddOptions<DatabaseOptions>()
+                .Bind(Configuration.GetSection("database"));
 
             services.AddSingleton<UserDataStore>();
             services.AddSingleton<BettingDataStore>();

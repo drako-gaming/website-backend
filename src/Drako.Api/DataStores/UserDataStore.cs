@@ -24,12 +24,12 @@ namespace Drako.Api.DataStores
         public async Task SaveUserAsync(string userTwitchId, string loginName, string displayName)
         {
             const string sql = @"
-                INSERT INTO Users (UserTwitchId, LoginName, DisplayName, LastUpdated)
+                INSERT INTO users (user_twitch_id, login_name, display_name, last_updated)
                 SELECT @userTwitchId, @loginName, @displayName, @date
-                ON CONFLICT (UserTwitchId) DO UPDATE
-                SET LoginName = @loginName,
-                    DisplayName = @displayName,
-                    LastUpdated = @date
+                ON CONFLICT (user_twitch_id) DO UPDATE
+                SET login_name = @loginName,
+                    display_name = @displayName,
+                    last_updated = @date
                 ";
             
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -47,9 +47,9 @@ namespace Drako.Api.DataStores
         public async Task<long> GetCurrencyAsync(string userTwitchId)
         {
             const string sql = @"
-                SELECT cuc.Balance
-                FROM Users cuc
-                WHERE cuc.UserTwitchId = @userTwitchId
+                SELECT cuc.balance
+                FROM users cuc
+                WHERE cuc.user_twitch_id = @userTwitchId
                 ";
             
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -63,19 +63,19 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH up AS (
-                    INSERT INTO Users (Balance, UserTwitchId, LastUpdated)
+                    INSERT INTO users (balance, user_twitch_id, last_updated)
                     SELECT @amount, @userTwitchId, @date
-                    ON CONFLICT (UserTwitchId) DO UPDATE
-                    SET Balance = ChannelUserCurrencies.Balance + @amount,
-                        LastUpdated = @date
-                    RETURNING UserTwitchId, Balance
+                    ON CONFLICT (user_twitch_id) DO UPDATE
+                    SET balance = users.balance + @amount,
+                        last_updated = @date
+                    RETURNING user_twitch_id, balance
                 ), i AS (
-                    INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
-                    SELECT up.UserTwitchId, @date, @amount, up.Balance, @reason
+                    INSERT INTO transactions (user_twitch_id, date, amount, balance, reason)
+                    SELECT up.user_twitch_id, @date, @amount, up.balance, @reason
                     FROM up
-                    RETURNING Id, Balance
+                    RETURNING id, balance
                 )
-                SELECT Id, Balance FROM i;
+                SELECT id, balance FROM i;
                 ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -94,18 +94,18 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH up AS (
-                    UPDATE Users 
-                    SET Balance = Balance - @amount,
-                        LastUpdated = @date
-                    WHERE UserTwitchId = @userTwitchId
-                    RETURNING UserTwitchId, Balance
+                    UPDATE users 
+                    SET balance = balance - @amount,
+                        last_updated = @date
+                    WHERE user_twitch_id = @userTwitchId
+                    RETURNING user_twitch_id, balance
                 ), i AS (
-                    INSERT INTO CurrencyTransactions (UserTwitchId, Date, Amount, Balance, Reason)
-                    SELECT up.UserTwitchId, @date, -@amount, up.Balance, reason
+                    INSERT INTO transactions (user_twitch_id, date, amount, balance, reason)
+                    SELECT up.user_twitch_id, @date, -@amount, up.balance, reason
                     FROM up
-                    RETURNING Id, Balance
+                    RETURNING id, balance
                 )
-                SELECT id, Balance FROM i;
+                SELECT id, balance FROM i;
                 ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
