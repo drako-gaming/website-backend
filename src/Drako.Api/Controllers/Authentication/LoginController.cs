@@ -1,15 +1,10 @@
-using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Dapper;
-using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace Drako.Api.Controllers.Authentication
 {
@@ -57,6 +52,7 @@ namespace Drako.Api.Controllers.Authentication
         }
         
         [HttpGet("logout")]
+        [Authorize]
         public IActionResult Logout([FromQuery] string redirectUri)
         {
             if (!Url.IsLocalUrl(redirectUri))
@@ -68,5 +64,24 @@ namespace Drako.Api.Controllers.Authentication
                 CookieAuthenticationDefaults.AuthenticationScheme
             );
         }
-    }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> Me()
+        {
+            var twitchId = User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            var user = await _userDataStore.GetUserAsync(twitchId);
+
+            return Ok(
+                new
+                {
+                    TwitchId = twitchId,
+                    DisplayName = user.display_name,
+                    LoginName = user.login_name,
+                    Balance = user.balance,
+                    LastTransactonId = user.last_transaction_id ?? 0
+                }
+            );
+        }
+    } 
 }

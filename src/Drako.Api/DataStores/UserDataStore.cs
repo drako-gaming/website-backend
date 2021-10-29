@@ -43,6 +43,20 @@ namespace Drako.Api.DataStores
                     date = DateTime.UtcNow
                 });
         }
+
+        public async Task<dynamic> GetUserAsync(string userTwitchId)
+        {
+            const string sql = @"
+                SELECT u.login_name, u.display_name, u.balance, MAX(t.id) as last_transaction_id
+                FROM users u
+                LEFT JOIN transactions t ON t.user_id = t.id
+                WHERE user_twitch_id = @userTwitchId
+                GROUP BY u.login_name, u.display_name, u.balance
+            ";
+
+            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+            return await connection.QuerySingleAsync(sql, new { userTwitchId });
+        }
         
         public async Task<long> GetCurrencyAsync(string userTwitchId)
         {
@@ -68,10 +82,10 @@ namespace Drako.Api.DataStores
                     ON CONFLICT (user_twitch_id) DO UPDATE
                     SET balance = users.balance + @amount,
                         last_updated = @date
-                    RETURNING user_twitch_id, balance
+                    RETURNING id, balance
                 ), i AS (
-                    INSERT INTO transactions (user_twitch_id, date, amount, balance, reason)
-                    SELECT up.user_twitch_id, @date, @amount, up.balance, @reason
+                    INSERT INTO transactions (user_id, date, amount, balance, reason)
+                    SELECT up.id, @date, @amount, up.balance, @reason
                     FROM up
                     RETURNING id, balance
                 )
@@ -85,7 +99,7 @@ namespace Drako.Api.DataStores
                 amount,
                 reason,
                 date = DateTime.UtcNow
-            })).FirstOrDefault();
+            })).First();
 
             await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
         }
@@ -100,13 +114,13 @@ namespace Drako.Api.DataStores
                     WHERE user_twitch_id = @userTwitchId
                     RETURNING user_twitch_id, balance
                 ), i AS (
-                    INSERT INTO transactions (user_twitch_id, date, amount, balance, reason)
-                    SELECT up.user_twitch_id, @date, -@amount, up.balance, reason
+                    INSERT INTO transactions (user_id, date, amount, balance, reason)
+                    SELECT up.id, @date, -@amount, up.balance, reason
                     FROM up
                     RETURNING id, balance
                 )
                 SELECT id, balance FROM i;
-                ";
+            ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
             var result = (await connection.QueryAsync(sql, new
@@ -115,7 +129,7 @@ namespace Drako.Api.DataStores
                 amount,
                 reason,
                 date = DateTime.UtcNow
-            })).FirstOrDefault();
+            })).First();
             
             await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
         }

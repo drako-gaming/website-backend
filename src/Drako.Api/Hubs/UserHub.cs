@@ -7,7 +7,7 @@ namespace Drako.Api.Hubs
     public interface IUserHub
     {
         Task BetStatusChanged();
-        Task CurrencyUpdated(long sequenceNumber, long balance);
+        Task CurrencyUpdated(long lastTransactionId, long balance);
     }
     
     [Authorize]
