@@ -11,6 +11,11 @@ services:
             - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?err}"
             - "USER_PASSWORD=${USER_DB_PASSWORD:?err}"
 
+    redis:
+        image: redis:6
+        ports:
+            - 6379:6379
+
     migrations:
         profiles:
             - manual

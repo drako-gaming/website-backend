@@ -1,7 +1,9 @@
+using System;
 using AspNet.Security.OAuth.Twitch;
 using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Drako.Api.Hubs;
+using Drako.Api.Jobs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -9,6 +11,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Quartz;
+using StackExchange.Redis;
 
 namespace Drako.Api
 {
@@ -30,6 +34,7 @@ namespace Drako.Api
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Drako.Api", Version = "v1" });
             });
+            
             services.AddAuthentication(options =>
                 {
                     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -54,6 +59,35 @@ namespace Drako.Api
 
             services.AddSingleton<UserDataStore>();
             services.AddSingleton<BettingDataStore>();
+
+            // Redis
+            services.AddTransient<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(Configuration.GetSection("redis")["connectionString"]));
+
+            services.AddTransient(ctx =>
+                ctx.GetRequiredService<IConnectionMultiplexer>().GetDatabase());
+
+            // Quartz
+            services.Configure<QuartzOptions>(Configuration.GetSection("quartz"));
+
+            services.AddQuartz(q =>
+            {
+                q.SchedulerId = "drako-api";
+
+                q.UseMicrosoftDependencyInjectionJobFactory();
+
+                q.UseSimpleTypeLoader();
+                q.UseInMemoryStore();
+                q.UseDefaultThreadPool();
+
+                q.ScheduleJob<AddCurrencyJob>(trigger =>
+                    trigger.StartNow().WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(5)))
+                );
+            });
+
+            services.AddTransient<AddCurrencyJob>();
+
+            services.AddQuartzHostedService();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
