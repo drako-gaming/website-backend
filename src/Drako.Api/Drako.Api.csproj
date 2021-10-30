@@ -15,9 +15,4 @@
         <PackageReference Include="Swashbuckle.AspNetCore" Version="5.6.3" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Content Remove="appSettings.tmpl.json" />
-      <None Include="appSettings.tmpl.json" />
-    </ItemGroup>
-
 </Project>
