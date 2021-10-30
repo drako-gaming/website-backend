@@ -7,7 +7,7 @@ namespace Drako.Api
     {
         public static string TwitchId(this ClaimsPrincipal principal)
         {
-            throw new NotImplementedException();
+            return principal.FindFirstValue(ClaimTypes.NameIdentifier);
         }
     }
 }

@@ -44,7 +44,7 @@ namespace Drako.Api.Controllers.Authentication
                 redirectUri = "/";
             }
 
-            var userTwitchId = User.FindFirst(x => x.Type == ClaimTypes.NameIdentifier)?.Value;
+            var userTwitchId = User.TwitchId();
             var loginName = User.FindFirst(x => x.Type == ClaimTypes.Name)?.Value;
             var displayName = User.FindFirst(x => x.Type == "urn:twitch:displayname")?.Value;
             await _userDataStore.SaveUserAsync(userTwitchId, loginName, displayName);
@@ -69,7 +69,7 @@ namespace Drako.Api.Controllers.Authentication
         [Authorize]
         public async Task<IActionResult> Me()
         {
-            var twitchId = User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+            var twitchId = User.TwitchId();
             var user = await _userDataStore.GetUserAsync(twitchId);
 
             return Ok(

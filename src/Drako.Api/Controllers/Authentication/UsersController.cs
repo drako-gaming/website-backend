@@ -21,7 +21,7 @@ namespace Drako.Api.Controllers.Authentication
         [HttpPost("presence")]
         public async Task<IActionResult> Presence()
         {
-            await _redis.SetAddAsync("presence", User.FindFirstValue(ClaimTypes.NameIdentifier));
+            await _redis.SetAddAsync("presence", User.TwitchId());
             await _redis.KeyExpireAsync("presence", TimeSpan.FromHours(1));
             return NoContent();
         }
