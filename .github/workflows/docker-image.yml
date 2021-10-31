@@ -17,6 +17,13 @@ jobs:
     
     - name: Build the Docker image
       run: docker build src/Drako.Api --file src/Drako.Api/Dockerfile --tag ghcr.io/drako-gaming/website-backend:latest
-      
+    
+    - name: Loging to GHCR
+      uses: docker/login-action@v1
+      with:
+        registry: ghcr.io
+        username: SirRippovMaple
+        password: ${{ secrets.PACKAGE_TOKEN }}
+
     - name: Push the Docker image
       run: docker push ghcr.io/drako-gaming/website-backend:latest
