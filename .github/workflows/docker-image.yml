@@ -14,5 +14,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    
     - name: Build the Docker image
-      run: docker build src/Drako.Api --file src/Drako.Api/Dockerfile --tag drako-api:$(date +%s)
+      run: docker build src/Drako.Api --file src/Drako.Api/Dockerfile --tag gchr.io/drako-gaming/website-backend:latest
+      
+    - name: Push the Docker image
+      run: docker push ghcr.io/drako-gaming/website-backend:latest
