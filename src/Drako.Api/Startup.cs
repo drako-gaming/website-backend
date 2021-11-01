@@ -93,6 +93,12 @@ namespace Drako.Api
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            var pathBase = Configuration.GetSection("http")["pathBase"];
+            if (!string.IsNullOrWhiteSpace(pathBase))
+            {
+                app.UsePathBase(pathBase);
+            }
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
