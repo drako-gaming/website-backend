@@ -7,6 +7,7 @@ using Drako.Api.Jobs;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -49,6 +50,7 @@ namespace Drako.Api
                     options.ForceVerify = true;
                     options.SaveTokens = false;
                     options.Scope.Clear();
+                    options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
                 });
 
             services.AddOptions<TwitchAuthenticationOptions>(TwitchAuthenticationDefaults.AuthenticationScheme)
