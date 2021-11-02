@@ -83,7 +83,9 @@ namespace Drako.Api
                 q.UseDefaultThreadPool();
 
                 q.ScheduleJob<AddCurrencyJob>(trigger =>
-                    trigger.StartNow().WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(5)))
+                    trigger.StartNow()
+                        .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+                        .WithIdentity("Add currency")
                 );
             });
 

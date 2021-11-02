@@ -17,7 +17,6 @@ namespace Drako.Api.Controllers.Authentication
             _redis = redis;
         }
         
-        // GET
         [HttpPost("presence")]
         public async Task<IActionResult> Presence()
         {
