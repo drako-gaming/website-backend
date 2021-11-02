@@ -77,9 +77,7 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 WITH up AS (
-                    INSERT INTO users (balance, user_twitch_id, last_updated)
-                    SELECT @amount, @userTwitchId, @date
-                    ON CONFLICT (user_twitch_id) DO UPDATE
+                    UPDATE users
                     SET balance = users.balance + @amount,
                         last_updated = @date
                     RETURNING id, balance
