@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AspNet.Security.OAuth.Twitch;
 using Drako.Api.Configuration;
 using Drako.Api.DataStores;
@@ -52,6 +53,16 @@ namespace Drako.Api
                 {
                     options.LoginPath = "/login";
                     options.LogoutPath = "/logout";
+                    options.Events.OnRedirectToLogin = context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return Task.CompletedTask;
+                    };
+                    options.Events.OnRedirectToAccessDenied = context =>
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        return Task.CompletedTask;
+                    };
                 })
                 .AddTwitch("Twitch", options =>
                 {
