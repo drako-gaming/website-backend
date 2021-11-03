@@ -33,6 +33,9 @@ namespace Drako.Api
             services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.All;
+                options.RequireHeaderSymmetry = false;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
             });
             services.AddControllers();
             services.AddSignalR();
