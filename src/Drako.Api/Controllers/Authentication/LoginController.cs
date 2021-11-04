@@ -1,12 +1,12 @@
-using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Drako.Api.Configuration;
 using Drako.Api.DataStores;
+using Drako.Api.TwitchApiClient;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -18,15 +18,18 @@ namespace Drako.Api.Controllers.Authentication
         private readonly IOptionsSnapshot<TwitchOptions> _twitchOptions;
         private readonly OwnerInfoDataStore _ownerInfoDataStore;
         private readonly UserDataStore _userDataStore;
+        private readonly TwitchApi _twitchApi;
 
         public LoginController(
             IOptionsSnapshot<TwitchOptions> twitchOptions,
             OwnerInfoDataStore ownerInfoDataStore,
-            UserDataStore userDataStore)
+            UserDataStore userDataStore,
+            TwitchApi twitchApi)
         {
             _twitchOptions = twitchOptions;
             _ownerInfoDataStore = ownerInfoDataStore;
             _userDataStore = userDataStore;
+            _twitchApi = twitchApi;
         }
 
         [HttpGet("login")]
@@ -77,7 +80,7 @@ namespace Drako.Api.Controllers.Authentication
         }
 
         [HttpGet("ownerToken")]
-        public async Task<IActionResult> GetOwnerToken()
+        public IActionResult GetOwnerToken()
         {
             return Challenge(
                 new AuthenticationProperties
@@ -100,7 +103,17 @@ namespace Drako.Api.Controllers.Authentication
             var info = await this.HttpContext.AuthenticateAsync("TwitchOwner");
             var accessToken = info.Properties.Items[".Token.access_token"];
             var refreshToken = info.Properties.Items[".Token.refresh_token"];
+            var appAccessToken = await _twitchApi.GetAppAccessToken();
             await _ownerInfoDataStore.SaveTokens(accessToken, refreshToken);
+            await Task.WhenAll(
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.subscribe"),
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.subscription.end"),
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.moderator.add"),
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.moderator.remove"),
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "stream.online"),
+                _twitchApi.SubscribeToEventAsync(appAccessToken, "stream.offline")
+            );
+            
             return Ok("Success!");
         }
         

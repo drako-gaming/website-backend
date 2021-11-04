@@ -5,6 +5,7 @@ using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Drako.Api.Hubs;
 using Drako.Api.Jobs;
+using Drako.Api.TwitchApiClient;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -89,6 +90,7 @@ namespace Drako.Api
                 .Bind(Configuration.GetSection("twitch"));
             services.AddOptions<TwitchOptions>()
                 .Bind(Configuration.GetSection("twitch"));
+            services.AddSingleton<TwitchApi>();
             
             services.AddOptions<DatabaseOptions>()
                 .Bind(Configuration.GetSection("database"));
@@ -132,6 +134,12 @@ namespace Drako.Api
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            app.Use(async (context, next) =>
+            {
+                context.Request.EnableBuffering();
+                await next();
+            });
+            
             app.UseForwardedHeaders();
             
             var pathBase = Configuration.GetSection("http")["pathBase"];
