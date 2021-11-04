@@ -27,7 +27,7 @@ ALTER TABLE wagers OWNER TO drakoapi;
 
 create table junk
 (
-    name varchar(30) not null,
+    name varchar(30) not null primary key,
     value bigint not null
 );
 

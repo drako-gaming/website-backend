@@ -70,9 +70,24 @@ namespace Drako.Api
                     options.SaveTokens = false;
                     options.Scope.Clear();
                     options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
+                })
+                .AddTwitch("TwitchOwner", options =>
+                {
+                    options.ForceVerify = true;
+                    options.SaveTokens = true;
+                    options.Scope.Clear();
+                    options.Scope.Add("channel:read:subscriptions");
+                    options.Scope.Add("moderation:read");
+                    options.Scope.Add("channel:manage:redemptions");
+                    options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
+                    options.CallbackPath = "/signin-TwitchOwner";
                 });
 
-            services.AddOptions<TwitchAuthenticationOptions>(TwitchAuthenticationDefaults.AuthenticationScheme)
+            services.AddOptions<TwitchAuthenticationOptions>("Twitch")
+                .Bind(Configuration.GetSection("twitch"));
+            services.AddOptions<TwitchAuthenticationOptions>("TwitchOwner")
+                .Bind(Configuration.GetSection("twitch"));
+            services.AddOptions<TwitchOptions>()
                 .Bind(Configuration.GetSection("twitch"));
             
             services.AddOptions<DatabaseOptions>()
@@ -80,6 +95,7 @@ namespace Drako.Api
 
             services.AddSingleton<UserDataStore>();
             services.AddSingleton<BettingDataStore>();
+            services.AddSingleton<OwnerInfoDataStore>();
 
             // Redis
             services.AddTransient<IConnectionMultiplexer>(_ =>

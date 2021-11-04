@@ -1,20 +1,31 @@
+using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Drako.Api.Controllers.Authentication
 {
     [ApiController]
     public class LoginController : Controller
     {
+        private readonly IOptionsSnapshot<TwitchOptions> _twitchOptions;
+        private readonly OwnerInfoDataStore _ownerInfoDataStore;
         private readonly UserDataStore _userDataStore;
 
-        public LoginController(UserDataStore userDataStore)
+        public LoginController(
+            IOptionsSnapshot<TwitchOptions> twitchOptions,
+            OwnerInfoDataStore ownerInfoDataStore,
+            UserDataStore userDataStore)
         {
+            _twitchOptions = twitchOptions;
+            _ownerInfoDataStore = ownerInfoDataStore;
             _userDataStore = userDataStore;
         }
 
@@ -65,6 +76,34 @@ namespace Drako.Api.Controllers.Authentication
             );
         }
 
+        [HttpGet("ownerToken")]
+        public async Task<IActionResult> GetOwnerToken()
+        {
+            return Challenge(
+                new AuthenticationProperties
+                {
+                    RedirectUri = Url.Action("OwnerTokenComplete", "Login")
+                },
+                "TwitchOwner"
+            );
+        }
+
+        [HttpGet("ownerTokenComplete")]
+        public async Task<IActionResult> OwnerTokenComplete()
+        {
+            var userTwitchId = User.TwitchId();
+            if (userTwitchId != _twitchOptions.Value.OwnerUserId)
+            {
+                return Ok("Nice try!");
+            }
+
+            var info = await this.HttpContext.AuthenticateAsync("TwitchOwner");
+            var accessToken = info.Properties.Items[".Token.access_token"];
+            var refreshToken = info.Properties.Items[".Token.refresh_token"];
+            await _ownerInfoDataStore.SaveTokens(accessToken, refreshToken);
+            return Ok("Success!");
+        }
+        
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> Me()
