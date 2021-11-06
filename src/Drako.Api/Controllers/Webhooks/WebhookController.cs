@@ -59,7 +59,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("stream.offline")]
         public async Task<IActionResult> StreamOffline([FromBody] Notification<object> notification)
         {
-            await _redis.KeyDeleteAsync("online");
+            await _redis.StringSetAsync("online", 0);
             return Ok();
         }
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Drako.Api.Configuration;
 using Microsoft.Extensions.Options;
@@ -89,6 +90,46 @@ namespace Drako.Api.TwitchApiClient
 
             returnValue.Add(_twitchOptions.Value.OwnerUserId);
             return returnValue;
+        }
+
+        public async Task<IList<string>> GetSubscribers(string accessToken)
+        {
+            try
+            {
+                Envelope<UserResponse> response;
+                List<string> returnValue = new List<string>();
+                var request = new RestRequest("helix/subscriptions");
+                request.AddHeader("Authorization", $"Bearer {accessToken}");
+                request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
+                do
+                {
+                    response = await ExecuteAsync<Envelope<UserResponse>>(request);
+                    returnValue.AddRange(response.data.Select(x => x.user_id));
+                } while (!string.IsNullOrEmpty(response.pagination?.cursor));
+
+                returnValue.Add(_twitchOptions.Value.OwnerUserId);
+                return returnValue;
+            }
+            catch (ApiException e)
+            {
+                if (e.StatusCode == HttpStatusCode.BadRequest)
+                {
+                    return new List<string>();
+                }
+
+                throw;
+            }
+        }
+
+        public async Task<bool> IsStreamOnline(string accessToken)
+        {
+            var request = new RestRequest("helix/streams");
+            request.AddHeader("Authorization", $"Bearer {accessToken}");
+            request.AddQueryParameter("first", "1");
+            request.AddQueryParameter("user_id", _twitchOptions.Value.OwnerUserId);
+
+            var response = await ExecuteAsync<Envelope<object>>(request);
+            return response.data.Count > 0;
         }
 
         private async Task<T> ExecuteAsync<T>(IRestRequest request)

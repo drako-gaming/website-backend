@@ -29,6 +29,7 @@ namespace Drako.Api.Jobs
             try
             {
                 await SyncModerators(tokenInfo.AccessToken);
+                await SyncSubscribers(tokenInfo.AccessToken);
             }
             catch (ApiException e)
             {
@@ -37,6 +38,7 @@ namespace Drako.Api.Jobs
                     var newTokens = await _twitchApiClient.RefreshToken(tokenInfo.AccessToken, tokenInfo.RefreshToken);
                     await _ownerInfoDataStore.SaveTokens(newTokens.AccessToken, newTokens.RefreshToken);
                     await SyncModerators(newTokens.AccessToken);
+                    await SyncSubscribers(newTokens.AccessToken);
                 }
                 else
                 {
@@ -61,6 +63,37 @@ namespace Drako.Api.Jobs
             tran.KeyRenameAsync("moderators_new", "moderators");
 #pragma warning restore 4014
             await tran.ExecuteAsync();
+        }
+
+        private async Task SyncSubscribers(string accessToken)
+        {
+            var subscribers = await _twitchApiClient.GetSubscribers(accessToken);
+            foreach (var moderator in subscribers)
+            {
+                await _redis.SetAddAsync("subscribers_new", moderator);
+            }
+
+            var tran = _redis.CreateTransaction();
+#pragma warning disable 4014
+            // Make sure that the moderators key exists
+            tran.SetAddAsync("subscribers", "0");
+            tran.KeyDeleteAsync("subscribers");
+            tran.KeyRenameAsync("subscribers_new", "subscribers");
+#pragma warning restore 4014
+            await tran.ExecuteAsync();
+        }
+
+        private async Task SyncOnlineStatus(string accessToken)
+        {
+            var isStreamOnline = await _twitchApiClient.IsStreamOnline(accessToken);
+            if (isStreamOnline)
+            {
+                await _redis.StringSetAsync("online", 1);
+            }
+            else
+            {
+                await _redis.StringSetAsync("online", 0);
+            }
         }
     }
 }
