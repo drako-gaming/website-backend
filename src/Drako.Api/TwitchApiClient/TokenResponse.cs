@@ -23,4 +23,24 @@ namespace Drako.Api.TwitchApiClient
     {
         public string cursor { get; set; }
     }
+
+    public class EventSub
+    {
+        public string id { get; set; }
+        public string status { get; set; }
+        public string type { get; set; }
+        public EventSubCondition condition { get; set; }
+        public EventSubTransport transport { get; set; }
+    }
+
+    public class EventSubCondition
+    {
+        public string broadcaster_user_id { get; set; }
+    }
+
+    public class EventSubTransport
+    {
+        public string method { get; set; }
+        public string callback { get; set; }
+    }
 }

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Drako.Api.Configuration;
@@ -105,13 +107,14 @@ namespace Drako.Api.Controllers.Authentication
             var refreshToken = info.Properties.Items[".Token.refresh_token"];
             var appAccessToken = await _twitchApi.GetAppAccessToken();
             await _ownerInfoDataStore.SaveTokens(accessToken, refreshToken);
+            var existingTopics = await _twitchApi.GetSubscribedTopics(appAccessToken);
             await Task.WhenAll(
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.subscribe"),
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.subscription.end"),
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.moderator.add"),
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "channel.moderator.remove"),
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "stream.online"),
-                _twitchApi.SubscribeToEventAsync(appAccessToken, "stream.offline")
+                SubscribeToTopic("channel.subscribe", existingTopics, appAccessToken),
+                SubscribeToTopic("channel.subscription.end", existingTopics, appAccessToken),
+                SubscribeToTopic("channel.moderator.add", existingTopics, appAccessToken),
+                SubscribeToTopic("channel.moderator.remove", existingTopics, appAccessToken),
+                SubscribeToTopic("stream.online", existingTopics, appAccessToken),
+                SubscribeToTopic("stream.offline", existingTopics, appAccessToken)
             );
             
             return Ok("Success!");
@@ -134,6 +137,33 @@ namespace Drako.Api.Controllers.Authentication
                     LastTransactonId = user.last_transaction_id ?? 0
                 }
             );
+        }
+
+        private async Task SubscribeToTopic(string topic, IList<EventSub> existingTopics, string appAccessToken)
+        {
+            IList<EventSub> Filter(bool enabledOnly, IList<EventSub> topics)
+            {
+                return topics.Where(t => 
+                        t.condition.broadcaster_user_id == _twitchOptions.Value.OwnerUserId &&
+                                         (!enabledOnly || t.status == "enabled") &&
+                                         t.transport.callback == _twitchOptions.Value.WebhookCallbackEndpoint &&
+                                         t.type == topic)
+                    .ToList();
+            }
+
+            var existingTopic = Filter(true, existingTopics);
+            if (existingTopic.Any())
+            {
+                return;
+            }
+
+            existingTopic = Filter(false, existingTopics);
+            foreach (var sub in existingTopic)
+            {
+                await _twitchApi.DeleteEventSubscription(appAccessToken, sub.id);
+            }
+            
+            await _twitchApi.SubscribeToEventAsync(appAccessToken, topic);
         }
     } 
 }

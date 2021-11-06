@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Serilog;
 
 namespace Drako.Api
 {
@@ -13,6 +14,7 @@ namespace Drako.Api
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
+                .UseSerilog((_, lc) => lc.WriteTo.Console())
                 .ConfigureWebHost(wb =>
                 {
                     wb.ConfigureAppConfiguration(cb =>

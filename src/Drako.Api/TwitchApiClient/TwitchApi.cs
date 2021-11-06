@@ -34,9 +34,7 @@ namespace Drako.Api.TwitchApiClient
             return response.access_token;
         }
 
-        public async Task<(string AccessToken, string RefreshToken)> RefreshToken(
-            string oldAccessToken,
-            string oldRefreshToken)
+        public async Task<(string AccessToken, string RefreshToken)> RefreshToken(string oldRefreshToken)
         {
             var request = new RestRequest(
                 new Uri(new Uri(_twitchOptions.Value.AuthEndpoint), "oauth2/token"),
@@ -50,11 +48,33 @@ namespace Drako.Api.TwitchApiClient
             var response = await ExecuteAsync<TokenResponse>(request);
             return (response.access_token, response.refresh_token);
         }
+
+        public async Task<IList<EventSub>> GetSubscribedTopics(string appAccessToken)
+        {
+            RestRequest BuildRequest()
+            {
+                var request = new RestRequest("helix/eventsub/subscriptions", Method.GET);
+                return request;
+            }
+
+            return await GetAllPages<EventSub>(
+                appAccessToken,
+                BuildRequest
+            );
+        }
+
+        public async Task DeleteEventSubscription(string appAccessToken, string id)
+        {
+            var request = new RestRequest("helix/eventsub/subscriptions", Method.DELETE);
+            request.AddHeader("Authorization", $"Bearer {appAccessToken}");
+            request.AddQueryParameter("id", id);
+            await ExecuteAsync<object>(request);
+        }
         
-        public async Task SubscribeToEventAsync(string accessToken, string topic)
+        public async Task SubscribeToEventAsync(string appAccessToken, string topic)
         {
             var request = new RestRequest("helix/eventsub/subscriptions", Method.POST);
-            request.AddHeader("Authorization", $"Bearer {accessToken}");
+            request.AddHeader("Authorization", $"Bearer {appAccessToken}");
             request.AddJsonBody(
                 new
                 {
@@ -77,35 +97,42 @@ namespace Drako.Api.TwitchApiClient
 
         public async Task<IList<string>> GetModerators(string accessToken)
         {
-            Envelope<UserResponse> response;
-            List<string> returnValue = new List<string>();
-            var request = new RestRequest("helix/moderation/moderators");
-            request.AddHeader("Authorization", $"Bearer {accessToken}");
-            request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
-            do
+            RestRequest BuildRequest()
             {
-                response = await ExecuteAsync<Envelope<UserResponse>>(request);
-                returnValue.AddRange(response.data.Select(x => x.user_id));
-            } while (!string.IsNullOrEmpty(response.pagination?.cursor));
+                var request = new RestRequest("helix/moderation/moderators");
+                request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
+                return request;
+            }
 
-            returnValue.Add(_twitchOptions.Value.OwnerUserId);
-            return returnValue;
+            return (
+                    await GetAllPages<UserResponse>(
+                        accessToken,
+                        BuildRequest
+                    )
+                )
+                .Select(x => x.user_id)
+                .ToList();
         }
 
         public async Task<IList<string>> GetSubscribers(string accessToken)
         {
             try
             {
-                Envelope<UserResponse> response;
-                List<string> returnValue = new List<string>();
-                var request = new RestRequest("helix/subscriptions");
-                request.AddHeader("Authorization", $"Bearer {accessToken}");
-                request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
-                do
+                RestRequest BuildRequest()
                 {
-                    response = await ExecuteAsync<Envelope<UserResponse>>(request);
-                    returnValue.AddRange(response.data.Select(x => x.user_id));
-                } while (!string.IsNullOrEmpty(response.pagination?.cursor));
+                    var request = new RestRequest("helix/subscriptions");
+                    request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
+                    return request;
+                }
+
+                List<string> returnValue = (
+                        await GetAllPages<UserResponse>(
+                            accessToken,
+                            BuildRequest
+                        )
+                    )
+                    .Select(x => x.user_id)
+                    .ToList();
 
                 returnValue.Add(_twitchOptions.Value.OwnerUserId);
                 return returnValue;
@@ -138,6 +165,27 @@ namespace Drako.Api.TwitchApiClient
             if (response.IsSuccessful) return response.Data;
 
             throw new ApiException(response);
+        }
+
+        private async Task<List<T>> GetAllPages<T>(string accessToken, Func<RestRequest> buildRequest)
+        {
+            List<T> returnValue = new List<T>();
+            string cursor = null;
+            
+            do
+            {
+                var request = buildRequest();
+                request.AddHeader("Authorization", $"Bearer {accessToken}");
+                if (cursor != null)
+                {
+                    request.AddQueryParameter("after", cursor);
+                }
+                var result = await ExecuteAsync<Envelope<T>>(request);
+                returnValue.AddRange(result.data);
+                cursor = result.pagination.cursor;
+            } while (!string.IsNullOrEmpty(cursor));
+
+            return returnValue;
         }
     }
 }

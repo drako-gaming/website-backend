@@ -35,7 +35,7 @@ namespace Drako.Api.Jobs
             {
                 if (e.StatusCode == HttpStatusCode.Unauthorized)
                 {
-                    var newTokens = await _twitchApiClient.RefreshToken(tokenInfo.AccessToken, tokenInfo.RefreshToken);
+                    var newTokens = await _twitchApiClient.RefreshToken(tokenInfo.RefreshToken);
                     await _ownerInfoDataStore.SaveTokens(newTokens.AccessToken, newTokens.RefreshToken);
                     await SyncModerators(newTokens.AccessToken);
                     await SyncSubscribers(newTokens.AccessToken);
