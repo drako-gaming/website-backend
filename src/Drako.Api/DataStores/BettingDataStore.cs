@@ -84,7 +84,8 @@ namespace Drako.Api.DataStores
             const string sql = @"
                 SELECT COUNT(cw.Id) FROM wagers cw
                 INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = cw.game_id
-                WHERE cw.user_twitch_id = @userTwitchId;
+                INNER JOIN users u ON cw.user_id = u.id
+                WHERE u.user_twitch_id = :userTwitchId;
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
@@ -153,8 +154,8 @@ namespace Drako.Api.DataStores
         {
             const string sql = @"
                 UPDATE games g
-                SET maximum_bet = @maximumBet
-                FROM junk
+                SET maximum_bet = :maximumBet
+                FROM junk j
                 WHERE
                     j.name = 'ActiveBetId'
                     AND g.id = j.value;
@@ -201,10 +202,12 @@ namespace Drako.Api.DataStores
         public async Task RecordBetAsync(string userTwitchId, int optionId, int amount)
         {
             const string sql = @"
-                INSERT INTO wagers (game_id, user_twitch_id, amount, option)
-                SELECT j.value, @userTwitchId, @Amount, @OptionId
+                INSERT INTO wagers (game_id, user_id, amount, option)
+                SELECT j.value, u.id, :Amount, :OptionId
                 FROM junk j
+                CROSS JOIN users u
                 WHERE j.name = 'ActiveBetId'
+                AND u.user_twitch_id = :userTwitchId
             ";
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
