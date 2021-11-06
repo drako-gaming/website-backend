@@ -39,5 +39,22 @@ namespace Drako.Api.DataStores
                 }
             );
         }
+
+        public async Task<(string AccessToken, string RefreshToken)> GetTokens()
+        {
+            const string sql = @"
+                SELECT a.Value as accessToken, b.Value as RefreshToken
+                FROM junk_strings a
+                CROSS JOIN junk_strings b
+                WHERE a.name = 'AccessToken' and b.name = 'RefreshToken';
+            ";
+            
+            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+            var result = await connection.QuerySingleAsync(
+                sql
+            );
+
+            return (result.accesstoken, result.refreshtoken);
+        }
     }
 }

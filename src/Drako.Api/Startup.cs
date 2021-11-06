@@ -128,6 +128,10 @@ namespace Drako.Api
                         .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
                         .WithIdentity("Add currency")
                 );
+                q.ScheduleJob<SyncWithTwitchJob>(trigger =>
+                    trigger.StartNow()
+                        .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                        .WithIdentity("Sync with Twitch"));
             });
 
             services.AddTransient<AddCurrencyJob>();
