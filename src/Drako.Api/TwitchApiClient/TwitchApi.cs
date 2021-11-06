@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
+using System;
 using System.Threading.Tasks;
-using AspNet.Security.OAuth.Twitch;
 using Drako.Api.Configuration;
 using Microsoft.Extensions.Options;
 using RestSharp;
@@ -15,13 +14,16 @@ namespace Drako.Api.TwitchApiClient
         public TwitchApi(IOptions<TwitchOptions> twitchOptions)
         {
             _twitchOptions = twitchOptions;
-            _client = new RestClient("https://api.twitch.tv/helix");
+            _client = new RestClient(twitchOptions.Value.ApiEndpoint);
             _client.AddDefaultHeader("Client-Id", twitchOptions.Value.ClientId);
         }
 
         public async Task<string> GetAppAccessToken()
         {
-            var request = new RestRequest("https://id.twitch.tv/oauth2/token", Method.POST);
+            var request = new RestRequest(
+                new Uri(new Uri(_twitchOptions.Value.AuthEndpoint), "oauth2/token"),
+                Method.POST
+            );
             request.AddQueryParameter("client_id", _twitchOptions.Value.ClientId);
             request.AddQueryParameter("client_secret", _twitchOptions.Value.ClientSecret);
             request.AddQueryParameter("grant_type", "client_credentials");
@@ -46,7 +48,7 @@ namespace Drako.Api.TwitchApiClient
                     {
                         method = "webhook",
                         callback = _twitchOptions.Value.WebhookCallbackEndpoint,
-                        secret = "HELLOWORLD"
+                        secret = _twitchOptions.Value.WebhookSecret
                     }
                 }
             );

@@ -44,8 +44,9 @@ namespace Drako.Api.Controllers
                 }
             );
         }
-        
+
         [HttpPost]
+        [Authorize(Roles = "moderator")]
         [Route("open")]
         public async Task<IActionResult> Open([FromBody] BettingResource model)
         {
@@ -65,12 +66,13 @@ namespace Drako.Api.Controllers
 
             await _bettingDataStore.SetOptionsAsync(model.Options);
             await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Open);
-            
+
             await _userHub.Clients.All.BetStatusChanged();
             return await Status();
         }
 
         [HttpPost]
+        [Authorize(Roles = "moderator")]
         [Route("close")]
         public async Task<IActionResult> Close()
         {
@@ -87,6 +89,7 @@ namespace Drako.Api.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "moderator")]
         [Route("winner")]
         public async Task<IActionResult> Winner([FromBody] BettingWinnerResource model)
         {

@@ -6,6 +6,7 @@ using Drako.Api.DataStores;
 using Drako.Api.Hubs;
 using Drako.Api.Jobs;
 using Drako.Api.TwitchApiClient;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -64,6 +65,8 @@ namespace Drako.Api
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         return Task.CompletedTask;
                     };
+                    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+                    options.SlidingExpiration = true;
                 })
                 .AddTwitch("Twitch", options =>
                 {
@@ -83,7 +86,8 @@ namespace Drako.Api
                     options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;
                     options.CallbackPath = "/signin-TwitchOwner";
                 });
-
+            services.AddTransient<IClaimsTransformation, RoleClaimsTransformation>();
+            
             services.AddOptions<TwitchAuthenticationOptions>("Twitch")
                 .Bind(Configuration.GetSection("twitch"));
             services.AddOptions<TwitchAuthenticationOptions>("TwitchOwner")
@@ -134,12 +138,6 @@ namespace Drako.Api
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
-            app.Use(async (context, next) =>
-            {
-                context.Request.EnableBuffering();
-                await next();
-            });
-            
             app.UseForwardedHeaders();
             
             var pathBase = Configuration.GetSection("http")["pathBase"];

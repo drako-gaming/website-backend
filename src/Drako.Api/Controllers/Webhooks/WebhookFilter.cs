@@ -1,23 +1,27 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
 {
-    public class WebhookFilter: IAsyncActionFilter
+    public class WebhookFilter: IAsyncActionFilter, IAsyncResourceFilter
     {
-        private readonly string _topic;
         private readonly IDatabase _redis;
+        private readonly IOptions<TwitchOptions> _twitchOptions;
 
-        public WebhookFilter(string topic, IDatabase redis)
+        public WebhookFilter(IDatabase redis, IOptions<TwitchOptions> twitchOptions)
         {
-            _topic = topic;
             _redis = redis;
+            _twitchOptions = twitchOptions;
         }
         
         public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -32,17 +36,22 @@ namespace Drako.Api.Controllers.Webhooks
 
             // TODO: Webhook signature verification
             // https://dev.twitch.tv/docs/eventsub#verify-a-signature
+            context.HttpContext.Request.Body.Seek(0, SeekOrigin.Begin);
+            if (!await SignatureIsValid(headers, context.HttpContext.Request.Body))
+            {
+                context.Result = new UnauthorizedResult();
+                return;
+            }
             
             if (headers.ContainsKey("twitch-eventsub-message-type"))
             {
                 var messageType = headers["twitch-eventsub-message-type"];
                 if (messageType == "webhook_callback_verification")
                 {
-                    context.HttpContext.Request.Body.Seek(0, SeekOrigin.Begin);
                     var content = await context.HttpContext.Request.ReadFromJsonAsync<ChallengeRequest>();
                     var okResult = new ContentResult
                     {
-                        Content = content.challenge,
+                        Content = content?.challenge,
                         ContentType = "text/plain",
                         StatusCode = 200
                     };
@@ -58,6 +67,19 @@ namespace Drako.Api.Controllers.Webhooks
             }
             
             await next();
+        }
+
+        private async Task<bool> SignatureIsValid(IHeaderDictionary headers, Stream requestBody)
+        {
+            var providedHmac = headers["Twitch-Eventsub-Message-Signature"].ToString();
+            var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_twitchOptions.Value.WebhookSecret));
+            var memoryString = new MemoryStream();
+            await memoryString.WriteAsync(Encoding.UTF8.GetBytes(headers["Twitch-Eventsub-Message-Id"].ToString()));
+            await memoryString.WriteAsync(Encoding.UTF8.GetBytes(headers["Twitch-Eventsub-Message-Timestamp"].ToString()));
+            await requestBody.CopyToAsync(memoryString);
+            memoryString.Seek(0, SeekOrigin.Begin);
+            var computedHmac = "sha256=" + Convert.ToHexString(await hmac.ComputeHashAsync(memoryString));
+            return String.Compare(providedHmac, computedHmac, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
         private bool MessageIsTooOld(IHeaderDictionary headerDictionary)
@@ -86,6 +108,12 @@ namespace Drako.Api.Controllers.Webhooks
                 TimeSpan.FromMinutes(60),
                 When.NotExists
             );
+        }
+
+        public async Task OnResourceExecutionAsync(ResourceExecutingContext context, ResourceExecutionDelegate next)
+        {
+            context.HttpContext.Request.EnableBuffering();
+            await next();
         }
     }
 }

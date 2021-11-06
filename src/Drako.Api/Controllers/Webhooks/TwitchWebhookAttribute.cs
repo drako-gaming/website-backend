@@ -1,23 +1,30 @@
 using System;
+using System.Threading.Tasks;
+using Drako.Api.Configuration;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
 {
-    public class WebhookAttribute : Attribute, IActionConstraint, IFilterFactory
+    public class TwitchWebhookAttribute : Attribute, IActionConstraint, IFilterFactory
     {
         private readonly string _topic;
 
-        public WebhookAttribute(string topic)
+        public TwitchWebhookAttribute(string topic)
         {
             _topic = topic;
         }
 
         public IFilterMetadata CreateInstance(IServiceProvider serviceProvider)
         {
-            return new WebhookFilter(_topic, serviceProvider.GetRequiredService<IDatabase>());
+            return new WebhookFilter(
+                serviceProvider.GetRequiredService<IDatabase>(),
+                serviceProvider.GetRequiredService<IOptions<TwitchOptions>>()
+            );
         }
 
         public bool IsReusable => false;

@@ -16,7 +16,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
         
         [HttpPost]
-        [Webhook("channel.subscribe")]
+        [TwitchWebhook("channel.subscribe")]
         public async Task<IActionResult> NewSubscriber([FromBody] Notification<UserEvent> notification)
         {
             await _redis.SetAddAsync("subscribers", notification.Event.user_id);
@@ -24,7 +24,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
 
         [HttpPost]
-        [Webhook("channel.subscription.end")]
+        [TwitchWebhook("channel.subscription.end")]
         public async Task<IActionResult> SubscriberEnd([FromBody] Notification<UserEvent> notification)
         {
             await _redis.SetRemoveAsync("subscribers", notification.Event.user_id);
@@ -32,7 +32,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
 
         [HttpPost]
-        [Webhook("channel.moderator.add")]
+        [TwitchWebhook("channel.moderator.add")]
         public async Task<IActionResult> NewModerator([FromBody] Notification<UserEvent> notification)
         {
             await _redis.SetAddAsync("moderators", notification.Event.user_id);
@@ -40,7 +40,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
         
         [HttpPost]
-        [Webhook("channel.moderator.remove")]
+        [TwitchWebhook("channel.moderator.remove")]
         public async Task<IActionResult> RemoveModerator([FromBody] Notification<UserEvent> notification)
         {
             await _redis.SetRemoveAsync("moderators", notification.Event.user_id);
@@ -48,7 +48,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
         
         [HttpPost]
-        [Webhook("stream.online")]
+        [TwitchWebhook("stream.online")]
         public async Task<IActionResult> StreamOnline([FromBody] Notification<object> notification)
         {
             await _redis.StringSetAsync("online", 1);
@@ -56,7 +56,7 @@ namespace Drako.Api.Controllers.Webhooks
         }
         
         [HttpPost]
-        [Webhook("stream.offline")]
+        [TwitchWebhook("stream.offline")]
         public async Task<IActionResult> StreamOffline([FromBody] Notification<object> notification)
         {
             await _redis.KeyDeleteAsync("online");
