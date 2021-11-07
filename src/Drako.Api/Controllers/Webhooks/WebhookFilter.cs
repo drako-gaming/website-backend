@@ -54,6 +54,7 @@ namespace Drako.Api.Controllers.Webhooks
                 var messageType = headers["twitch-eventsub-message-type"];
                 if (messageType == "webhook_callback_verification")
                 {
+                    context.HttpContext.Request.Body.Seek(0, SeekOrigin.Begin);
                     var content = await context.HttpContext.Request.ReadFromJsonAsync<ChallengeRequest>();
                     var okResult = new ContentResult
                     {
