@@ -105,8 +105,16 @@ namespace Drako.Api.Controllers.Authentication
             var info = await this.HttpContext.AuthenticateAsync("TwitchOwner");
             var accessToken = info.Properties.Items[".Token.access_token"];
             var refreshToken = info.Properties.Items[".Token.refresh_token"];
-            var appAccessToken = await _twitchApi.GetAppAccessToken();
             await _ownerInfoDataStore.SaveTokens(accessToken, refreshToken);
+            
+            return Ok("Success!");
+        }
+
+        [Authorize]
+        [HttpGet("resubevents")]
+        public async Task<IActionResult> Resubscribe()
+        {
+            var appAccessToken = await _twitchApi.GetAppAccessToken();
             var existingTopics = await _twitchApi.GetSubscribedTopics(appAccessToken);
             await Task.WhenAll(
                 SubscribeToTopic("channel.subscribe", existingTopics, appAccessToken),
@@ -116,7 +124,7 @@ namespace Drako.Api.Controllers.Authentication
                 SubscribeToTopic("stream.online", existingTopics, appAccessToken),
                 SubscribeToTopic("stream.offline", existingTopics, appAccessToken)
             );
-            
+
             return Ok("Success!");
         }
         

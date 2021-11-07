@@ -82,10 +82,14 @@ namespace Drako.Api.Controllers.Webhooks
             var memoryString = new MemoryStream();
             await memoryString.WriteAsync(Encoding.UTF8.GetBytes(headers["Twitch-Eventsub-Message-Id"].ToString()));
             await memoryString.WriteAsync(Encoding.UTF8.GetBytes(headers["Twitch-Eventsub-Message-Timestamp"].ToString()));
+            requestBody.Seek(0, SeekOrigin.Begin);
             await requestBody.CopyToAsync(memoryString);
             memoryString.Seek(0, SeekOrigin.Begin);
             var computedHmac = "sha256=" + Convert.ToHexString(await hmac.ComputeHashAsync(memoryString));
-            _logger.Information("Computed hash: {computedHmac}; provided hash: {providedHmac}", computedHmac, providedHmac);
+            _logger.Information("Computed hash: {computedHmac}; provided hash: {providedHmac}",
+                computedHmac,
+                providedHmac
+            );
             return String.Compare(providedHmac, computedHmac, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
