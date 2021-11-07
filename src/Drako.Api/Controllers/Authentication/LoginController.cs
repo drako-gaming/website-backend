@@ -105,23 +105,23 @@ namespace Drako.Api.Controllers.Authentication
             var accessToken = info.Properties.Items[".Token.access_token"];
             var refreshToken = info.Properties.Items[".Token.refresh_token"];
             await _ownerInfoDataStore.SaveTokens(accessToken, refreshToken);
-            
+            await Resubscribe();
             return Ok("Success!");
         }
 
         [Authorize]
         [HttpGet("resubevents")]
-        public async Task<IActionResult> Resubscribe()
+        public async Task<IActionResult> Resubscribe(bool force = false)
         {
             var appAccessToken = await _twitchApi.GetAppAccessToken();
             var existingTopics = await _twitchApi.GetSubscribedTopics(appAccessToken);
             await Task.WhenAll(
-                SubscribeToTopic("channel.subscribe", existingTopics, appAccessToken),
-                SubscribeToTopic("channel.subscription.end", existingTopics, appAccessToken),
-                SubscribeToTopic("channel.moderator.add", existingTopics, appAccessToken),
-                SubscribeToTopic("channel.moderator.remove", existingTopics, appAccessToken),
-                SubscribeToTopic("stream.online", existingTopics, appAccessToken),
-                SubscribeToTopic("stream.offline", existingTopics, appAccessToken)
+                SubscribeToTopic("channel.subscribe", existingTopics, appAccessToken, force),
+                SubscribeToTopic("channel.subscription.end", existingTopics, appAccessToken, force),
+                SubscribeToTopic("channel.moderator.add", existingTopics, appAccessToken, force),
+                SubscribeToTopic("channel.moderator.remove", existingTopics, appAccessToken, force),
+                SubscribeToTopic("stream.online", existingTopics, appAccessToken, force),
+                SubscribeToTopic("stream.offline", existingTopics, appAccessToken, force)
             );
 
             return Ok("Success!");
@@ -146,7 +146,8 @@ namespace Drako.Api.Controllers.Authentication
             );
         }
 
-        private async Task SubscribeToTopic(string topic, IList<EventSub> existingTopics, string appAccessToken)
+        private async Task SubscribeToTopic(string topic, IList<EventSub> existingTopics, string appAccessToken,
+            bool force)
         {
             IList<EventSub> Filter(bool enabledOnly, IList<EventSub> topics)
             {
@@ -159,7 +160,7 @@ namespace Drako.Api.Controllers.Authentication
             }
 
             var existingTopic = Filter(true, existingTopics);
-            if (existingTopic.Any())
+            if (force && existingTopic.Any())
             {
                 return;
             }
