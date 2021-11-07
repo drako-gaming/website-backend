@@ -86,17 +86,7 @@ namespace Drako.Api.Controllers.Webhooks
             requestBody.Seek(0, SeekOrigin.Begin);
             await requestBody.CopyToAsync(memoryString);
             memoryString.Seek(0, SeekOrigin.Begin);
-            requestBody.Seek(0, SeekOrigin.Begin);
             var computedHmac = "sha256=" + Convert.ToHexString(await hmac.ComputeHashAsync(memoryString));
-            var reader = new StreamReader(requestBody);
-            _logger.Information("Computed hash: {computedHmac}; provided hash: {providedHmac}; " +
-                                "message id: {messageid}; timestamp: {messageTimestamp}; body: {body}",
-                computedHmac,
-                providedHmac,
-                headers["Twitch-Eventsub-Message-Id"].ToString(),
-                headers["Twitch-Eventsub-Message-Timestamp"].ToString(),
-                await reader.ReadToEndAsync()
-            );
             return String.Compare(providedHmac, computedHmac, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
