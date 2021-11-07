@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
+using Serilog;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
@@ -17,9 +18,14 @@ namespace Drako.Api.Controllers.Webhooks
     {
         private readonly IDatabase _redis;
         private readonly IOptions<TwitchOptions> _twitchOptions;
+        private readonly ILogger _logger;
 
-        public WebhookFilter(IDatabase redis, IOptions<TwitchOptions> twitchOptions)
+        public WebhookFilter(
+            ILogger logger,
+            IDatabase redis,
+            IOptions<TwitchOptions> twitchOptions)
         {
+            _logger = logger.ForContext<WebhookFilter>();
             _redis = redis;
             _twitchOptions = twitchOptions;
         }
@@ -79,6 +85,7 @@ namespace Drako.Api.Controllers.Webhooks
             await requestBody.CopyToAsync(memoryString);
             memoryString.Seek(0, SeekOrigin.Begin);
             var computedHmac = "sha256=" + Convert.ToHexString(await hmac.ComputeHashAsync(memoryString));
+            _logger.Information("Computed hash: {computedHmac}; provided hash: {providedHmac}", computedHmac, providedHmac);
             return String.Compare(providedHmac, computedHmac, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
