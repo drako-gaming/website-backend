@@ -20,7 +20,7 @@ namespace Drako.Api.Tests
         [Fact]
         public async Task RedemptionAddsCoins()
         {
-            using var application = new Application(_testOutputHelper);
+            using var application = await Application.CreateInstanceAsync(_testOutputHelper);
             var rewardEventId = Guid.NewGuid().ToString();
             var response = await application.CallWebhook(
                 "channel.channel_points_custom_reward_redemption.add",
@@ -46,7 +46,7 @@ namespace Drako.Api.Tests
 
             var transactionsResponse = await application.Get(
                 "/transactions",
-                new { user_id = TestIds.Users.John, unique_id = $"redemption:{rewardEventId}" }
+                new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );
 
             var transactionResponseContent = await transactionsResponse.Content();
@@ -57,7 +57,7 @@ namespace Drako.Api.Tests
         [Fact]
         public async Task IgnoredRedemption()
         {
-            using var application = new Application(_testOutputHelper);
+            using var application = await Application.CreateInstanceAsync(_testOutputHelper);
             var rewardEventId = Guid.NewGuid().ToString();
             var response = await application.CallWebhook(
                 "channel.channel_points_custom_reward_redemption.add",
@@ -83,7 +83,7 @@ namespace Drako.Api.Tests
 
             var transactionsResponse = await application.Get(
                 "/transactions",
-                new { user_id = TestIds.Users.John, unique_id = $"redemption:{rewardEventId}" }
+                new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );
 
             var transactionResponseContent = await transactionsResponse.Content();

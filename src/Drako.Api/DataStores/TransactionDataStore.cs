@@ -20,12 +20,23 @@ namespace Drako.Api.DataStores
 
         public async Task<IList<Transaction>> GetTransactionsAsync(TransactionQueryParameters parameters)
         {
-            const string sqlTemplate = "SELECT * FROM transactions /**where**/";
+            const string sqlTemplate = @"SELECT 
+                    t.id,
+                    u.user_twitch_id as userid,
+                    date,
+                    amount,
+                    t.balance,
+                    reason,
+                    unique_id as uniqueid
+                FROM transactions t
+                INNER JOIN users u ON t.user_id = u.id
+                /**where**/
+            ";
 
             var builder = new SqlBuilder();
             if (parameters.UserId != null)
             {
-                builder = builder.Where("user_id = @userId", new { parameters.UserId });
+                builder = builder.Where("u.user_twitch_id = @userId", new { parameters.UserId });
             }
 
             if (parameters.UniqueId != null)

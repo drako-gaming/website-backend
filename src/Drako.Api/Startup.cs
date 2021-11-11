@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Twitch;
+using Dapper;
 using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Drako.Api.Hubs;
@@ -24,6 +25,11 @@ namespace Drako.Api
 {
     public class Startup
     {
+        static Startup()
+        {
+            SqlMapper.AddTypeHandler(typeof(DateTime), new DateTimeHandler());
+        }
+        
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -100,6 +106,9 @@ namespace Drako.Api
             services.AddOptions<DatabaseOptions>()
                 .Bind(Configuration.GetSection("database"));
 
+            services.AddOptions<RewardOptions>()
+                .Bind(Configuration.GetSection("rewards"));
+            
             services.AddSingleton<UserDataStore>();
             services.AddSingleton<BettingDataStore>();
             services.AddSingleton<OwnerInfoDataStore>();

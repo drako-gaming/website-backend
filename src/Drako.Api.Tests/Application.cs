@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Threading.Tasks;
 using AspNet.Security.OAuth.Twitch;
 using Drako.Api.Configuration;
+using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -40,8 +42,8 @@ namespace Drako.Api.Tests
                 base.ConfigureWebHost(builder);
             }
         }
-        
-        public Application(ITestOutputHelper testOutputHelper)
+
+        private Application(ITestOutputHelper testOutputHelper)
         {
             var logger = new LoggerConfiguration()
                 .WriteTo.TestOutput(testOutputHelper)
@@ -49,6 +51,15 @@ namespace Drako.Api.Tests
             
             TwitchApiServer = WireMockServer.Start();
             _factory = new TestWebApplicationFactory<Startup>(logger, AppServiceRegistry);
+        }
+
+        public static async Task<Application> CreateInstanceAsync(ITestOutputHelper testOutputHelper)
+        {
+            var application =  new Application(testOutputHelper);
+            await application._factory.Services
+                .GetService<OwnerInfoDataStore>()
+                .SaveTokens("OWNER_ACCESS_TOKEN", "OWNER_REFRESH_TOKEN");
+            return application;
         }
 
         public WireMockServer TwitchApiServer { get; }
