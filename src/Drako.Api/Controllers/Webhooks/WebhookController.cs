@@ -5,6 +5,7 @@ using Drako.Api.DataStores;
 using Drako.Api.TwitchApiClient;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Serilog;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
@@ -13,6 +14,7 @@ namespace Drako.Api.Controllers.Webhooks
     [Route("/webhook")]
     public class WebhookController : Controller
     {
+        private readonly ILogger _logger;
         private readonly IDatabase _redis;
         private readonly UserDataStore _userDataStore;
         private readonly OwnerInfoDataStore _ownerInfoDataStore;
@@ -20,12 +22,14 @@ namespace Drako.Api.Controllers.Webhooks
         private readonly IOptions<RewardOptions> _rewardOptions;
 
         public WebhookController(
+            ILogger logger,
             IDatabase redis,
             UserDataStore userDataStore,
             OwnerInfoDataStore ownerInfoDataStore,
             TwitchApi twitchApi,
             IOptions<RewardOptions> rewardOptions)
         {
+            _logger = logger.ForContext<WebhookController>();
             _redis = redis;
             _userDataStore = userDataStore;
             _ownerInfoDataStore = ownerInfoDataStore;
@@ -87,6 +91,13 @@ namespace Drako.Api.Controllers.Webhooks
         {
             var rewardIdForMatching = notification.Event.reward.id
                 ?.Replace("-", "").ToLowerInvariant();
+
+            _logger.Information(
+                "Received redemption {EventId} for reward {RewardId} and user {UserId}",
+                notification.Event.id,
+                rewardIdForMatching,
+                notification.Event.user_id
+            );
             if (rewardIdForMatching != null && _rewardOptions.Value.ContainsKey(rewardIdForMatching))
             {
                 var tokens = await _ownerInfoDataStore.GetTokens();
