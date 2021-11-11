@@ -100,6 +100,10 @@ namespace Drako.Api.Controllers.Webhooks
             );
             if (rewardIdForMatching != null && _rewardOptions.Value.ContainsKey(rewardIdForMatching))
             {
+                _logger.Information(
+                    "Processing redemption {EventId}",
+                    notification.Event.id
+                );
                 var tokens = await _ownerInfoDataStore.GetTokens();
                 long awardValue = _rewardOptions.Value[rewardIdForMatching];
                 string eventId = notification.Event.id;
