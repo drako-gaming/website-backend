@@ -161,7 +161,7 @@ namespace Drako.Api.TwitchApiClient
 
         public async Task MarkRedemptionFulfilled(string accessToken, string eventId, string rewardId)
         {
-            var request = new RestRequest("helix/channel_points/custom_rewards/redemptions");
+            var request = new RestRequest("helix/channel_points/custom_rewards/redemptions", Method.PATCH);
             request.AddHeader("Authorization", $"Bearer {accessToken}");
             request.AddQueryParameter("id", eventId);
             request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
