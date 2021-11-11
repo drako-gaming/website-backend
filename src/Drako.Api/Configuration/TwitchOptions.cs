@@ -1,5 +1,3 @@
-using System.Dynamic;
-
 namespace Drako.Api.Configuration
 {
     public class TwitchOptions

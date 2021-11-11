@@ -30,6 +30,7 @@ namespace Drako.Api.Jobs
             {
                 await SyncModerators(tokenInfo.AccessToken);
                 await SyncSubscribers(tokenInfo.AccessToken);
+                await SyncOnlineStatus(tokenInfo.AccessToken);
             }
             catch (ApiException e)
             {
@@ -39,6 +40,7 @@ namespace Drako.Api.Jobs
                     await _ownerInfoDataStore.SaveTokens(newTokens.AccessToken, newTokens.RefreshToken);
                     await SyncModerators(newTokens.AccessToken);
                     await SyncSubscribers(newTokens.AccessToken);
+                    await SyncOnlineStatus(newTokens.AccessToken);
                 }
                 else
                 {

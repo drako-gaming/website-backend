@@ -121,7 +121,8 @@ namespace Drako.Api.Controllers.Authentication
                 SubscribeToTopic("channel.moderator.add", existingTopics, appAccessToken, force),
                 SubscribeToTopic("channel.moderator.remove", existingTopics, appAccessToken, force),
                 SubscribeToTopic("stream.online", existingTopics, appAccessToken, force),
-                SubscribeToTopic("stream.offline", existingTopics, appAccessToken, force)
+                SubscribeToTopic("stream.offline", existingTopics, appAccessToken, force),
+                SubscribeToTopic("channel.channel_points_custom_reward_redemption.add", existingTopics, appAccessToken, force)
             );
 
             return Ok("Success!");

@@ -73,16 +73,19 @@ namespace Drako.Api.DataStores
             });
         }
         
-        public async Task AddCurrencyAsync(string userTwitchId, int amount, string reason)
+        public async Task AddCurrencyAsync(string userTwitchId, long amount, string reason, string uniqueId = null)
         {
             const string sql = @"
                 WITH up AS (
                     UPDATE users
                     SET balance = users.balance + @amount,
                         last_updated = @date
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM transactions WHERE @unique_id != NULL AND unique_id = @uniqueId
+                    )
                     RETURNING id, balance
                 ), i AS (
-                    INSERT INTO transactions (user_id, date, amount, balance, reason)
+                    INSERT INTO transactions (user_id, date, amount, balance, reason, unique_id)
                     SELECT up.id, @date, @amount, up.balance, @reason
                     FROM up
                     RETURNING id, balance
@@ -96,10 +99,14 @@ namespace Drako.Api.DataStores
                 userTwitchId,
                 amount,
                 reason,
-                date = DateTime.UtcNow
-            })).First();
+                date = DateTime.UtcNow,
+                uniqueId
+            })).FirstOrDefault();
 
-            await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
+            if (result != null)
+            {
+                await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
+            }
         }
 
         public async Task RemoveCurrencyAsync(string userTwitchId, int amount, string reason)

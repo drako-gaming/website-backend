@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Quartz;
 using StackExchange.Redis;
@@ -102,10 +103,14 @@ namespace Drako.Api
             services.AddSingleton<UserDataStore>();
             services.AddSingleton<BettingDataStore>();
             services.AddSingleton<OwnerInfoDataStore>();
+            services.AddSingleton<TransactionDataStore>();
 
             // Redis
-            services.AddTransient<IConnectionMultiplexer>(_ =>
-                ConnectionMultiplexer.Connect(Configuration.GetSection("redis")["connectionString"]));
+            services.AddOptions<RedisOptions>()
+                .Bind(Configuration.GetSection("redis"));
+            
+            services.AddTransient<IConnectionMultiplexer>(ctx =>
+                ConnectionMultiplexer.Connect(ctx.GetRequiredService<IOptions<RedisOptions>>().Value.ConnectionString));
 
             services.AddTransient(ctx =>
                 ctx.GetRequiredService<IConnectionMultiplexer>().GetDatabase());

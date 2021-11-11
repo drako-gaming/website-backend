@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Options;
-using Serilog;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
@@ -18,14 +17,11 @@ namespace Drako.Api.Controllers.Webhooks
     {
         private readonly IDatabase _redis;
         private readonly IOptions<TwitchOptions> _twitchOptions;
-        private readonly ILogger _logger;
 
         public WebhookFilter(
-            ILogger logger,
             IDatabase redis,
             IOptions<TwitchOptions> twitchOptions)
         {
-            _logger = logger.ForContext<WebhookFilter>();
             _redis = redis;
             _twitchOptions = twitchOptions;
         }
@@ -40,9 +36,7 @@ namespace Drako.Api.Controllers.Webhooks
                 return;
             }
 
-            // TODO: Webhook signature verification
             // https://dev.twitch.tv/docs/eventsub#verify-a-signature
-            context.HttpContext.Request.Body.Seek(0, SeekOrigin.Begin);
             if (!await SignatureIsValid(headers, context.HttpContext.Request.Body))
             {
                 context.Result = new UnauthorizedResult();

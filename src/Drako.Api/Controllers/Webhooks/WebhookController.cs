@@ -1,5 +1,10 @@
+using System.Net;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
+using Drako.Api.DataStores;
+using Drako.Api.TwitchApiClient;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
@@ -9,10 +14,23 @@ namespace Drako.Api.Controllers.Webhooks
     public class WebhookController : Controller
     {
         private readonly IDatabase _redis;
+        private readonly UserDataStore _userDataStore;
+        private readonly OwnerInfoDataStore _ownerInfoDataStore;
+        private readonly TwitchApi _twitchApi;
+        private readonly IOptions<RewardOptions> _rewardOptions;
 
-        public WebhookController(IDatabase redis)
+        public WebhookController(
+            IDatabase redis,
+            UserDataStore userDataStore,
+            OwnerInfoDataStore ownerInfoDataStore,
+            TwitchApi twitchApi,
+            IOptions<RewardOptions> rewardOptions)
         {
             _redis = redis;
+            _userDataStore = userDataStore;
+            _ownerInfoDataStore = ownerInfoDataStore;
+            _twitchApi = twitchApi;
+            _rewardOptions = rewardOptions;
         }
         
         [HttpPost]
@@ -60,6 +78,44 @@ namespace Drako.Api.Controllers.Webhooks
         public async Task<IActionResult> StreamOffline([FromBody] Notification<object> notification)
         {
             await _redis.StringSetAsync("online", 0);
+            return Ok();
+        }
+
+        [HttpPost]
+        [TwitchWebhook("channel.channel_points_custom_reward_redemption.add")]
+        public async Task<IActionResult> RewardsRedeemed([FromBody] Notification<RewardEvent> notification)
+        {
+            if (_rewardOptions.Value.ContainsKey(notification.Event.reward.id))
+            {
+                var tokens = await _ownerInfoDataStore.GetTokens();
+                long awardValue = _rewardOptions.Value[notification.Event.reward.id];
+                string eventId = notification.Event.id;
+                string userId = notification.Event.user_id;
+
+                await _userDataStore.AddCurrencyAsync(
+                    userId,
+                    awardValue,
+                    $"Reward {notification.Event.reward.id} redeemed.",
+                    $"redemption:{eventId}"
+                );
+
+                try
+                {
+                    await _twitchApi.MarkRedemptionFulfilled(tokens.AccessToken, eventId, notification.Event.reward.id);
+                }
+                catch (ApiException e)
+                {
+
+                    if (e.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        var newTokens = await _twitchApi.RefreshToken(tokens.RefreshToken);
+                        await _ownerInfoDataStore.SaveTokens(newTokens.AccessToken, newTokens.RefreshToken);
+                        await _twitchApi.MarkRedemptionFulfilled(newTokens.AccessToken, eventId,
+                            notification.Event.reward.id);
+                    }
+                }
+            }
+
             return Ok();
         }
     }

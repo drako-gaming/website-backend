@@ -1,12 +1,9 @@
 using System;
-using System.Threading.Tasks;
 using Drako.Api.Configuration;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Serilog;
 using StackExchange.Redis;
 
 namespace Drako.Api.Controllers.Webhooks
@@ -23,7 +20,6 @@ namespace Drako.Api.Controllers.Webhooks
         public IFilterMetadata CreateInstance(IServiceProvider serviceProvider)
         {
             return new WebhookFilter(
-                Log.Logger,
                 serviceProvider.GetRequiredService<IDatabase>(),
                 serviceProvider.GetRequiredService<IOptions<TwitchOptions>>()
             );
