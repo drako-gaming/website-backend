@@ -85,10 +85,12 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("channel.channel_points_custom_reward_redemption.add")]
         public async Task<IActionResult> RewardsRedeemed([FromBody] Notification<RewardEvent> notification)
         {
-            if (_rewardOptions.Value.ContainsKey(notification.Event.reward.id))
+            var rewardIdForMatching = notification.Event.reward.id
+                ?.Replace("-", "").ToLowerInvariant();
+            if (rewardIdForMatching != null && _rewardOptions.Value.ContainsKey(rewardIdForMatching))
             {
                 var tokens = await _ownerInfoDataStore.GetTokens();
-                long awardValue = _rewardOptions.Value[notification.Event.reward.id];
+                long awardValue = _rewardOptions.Value[rewardIdForMatching];
                 string eventId = notification.Event.id;
                 string userId = notification.Event.user_id;
 
@@ -111,7 +113,8 @@ namespace Drako.Api.Controllers.Webhooks
                         var newTokens = await _twitchApi.RefreshToken(tokens.RefreshToken);
                         await _ownerInfoDataStore.SaveTokens(newTokens.AccessToken, newTokens.RefreshToken);
                         await _twitchApi.MarkRedemptionFulfilled(newTokens.AccessToken, eventId,
-                            notification.Event.reward.id);
+                            notification.Event.reward.id
+                        );
                     }
                 }
             }
