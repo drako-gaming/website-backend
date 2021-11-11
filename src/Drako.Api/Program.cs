@@ -20,7 +20,7 @@ namespace Drako.Api
                     wb.ConfigureAppConfiguration(cb =>
                     {
                         cb.AddEnvironmentVariables();
-                        cb.AddJsonFile("appSettings.json", false);
+                        cb.AddJsonFile("appSettings.json", true);
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); });
