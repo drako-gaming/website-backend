@@ -5,17 +5,21 @@ using System.Net;
 using System.Threading.Tasks;
 using Drako.Api.Configuration;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using RestSharp;
+using Serilog;
 
 namespace Drako.Api.TwitchApiClient
 {
     public class TwitchApi
     {
+        private readonly ILogger _logger;
         private readonly IOptions<TwitchOptions> _twitchOptions;
         private readonly RestClient _client;
 
-        public TwitchApi(IOptions<TwitchOptions> twitchOptions)
+        public TwitchApi(ILogger logger, IOptions<TwitchOptions> twitchOptions)
         {
+            _logger = logger;
             _twitchOptions = twitchOptions;
             _client = new RestClient(twitchOptions.Value.ApiEndpoint);
             _client.AddDefaultHeader("Client-Id", twitchOptions.Value.ClientId);
@@ -70,7 +74,7 @@ namespace Drako.Api.TwitchApiClient
             request.AddQueryParameter("id", id);
             await ExecuteAsync<object>(request);
         }
-        
+
         public async Task SubscribeToEventAsync(string appAccessToken, string topic)
         {
             var request = new RestRequest("helix/eventsub/subscriptions", Method.POST);
@@ -167,9 +171,10 @@ namespace Drako.Api.TwitchApiClient
             request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
             request.AddQueryParameter("reward_id", rewardId);
             request.AddJsonBody(new { status = "FULFILLED" });
-            await ExecuteAsync<object>(request);
+            var response = await ExecuteAsync<object>(request);
+            LogRequest(request, response);
         }
-        
+
         private async Task<T> ExecuteAsync<T>(IRestRequest request)
         {
             var response = await _client.ExecuteAsync<T>(request);
@@ -182,7 +187,7 @@ namespace Drako.Api.TwitchApiClient
         {
             List<T> returnValue = new List<T>();
             string cursor = null;
-            
+
             do
             {
                 var request = buildRequest();
@@ -191,12 +196,48 @@ namespace Drako.Api.TwitchApiClient
                 {
                     request.AddQueryParameter("after", cursor);
                 }
+
                 var result = await ExecuteAsync<Envelope<T>>(request);
                 returnValue.AddRange(result.data);
                 cursor = result.pagination.cursor;
             } while (!string.IsNullOrEmpty(cursor));
 
             return returnValue;
+        }
+
+        private void LogRequest(IRestRequest request, IRestResponse response)
+        {
+            var requestToLog = new
+            {
+                resource = request.Resource,
+                // Parameters are custom anonymous objects in order to have the parameter type as a nice string
+                // otherwise it will just show the enum value
+                parameters = request.Parameters.Select(parameter => new
+                {
+                    name = parameter.Name,
+                    value = parameter.Value,
+                    type = parameter.Type.ToString()
+                }),
+                // ToString() here to have the method as a nice string otherwise it will just show the enum value
+                method = request.Method.ToString(),
+                // This will generate the actual Uri used in the request
+                uri = _client.BuildUri(request),
+            };
+
+            var responseToLog = new
+            {
+                statusCode = response.StatusCode,
+                content = response.Content,
+                headers = response.Headers,
+                // The Uri that actually responded (could be different from the requestUri if a redirection occurred)
+                responseUri = response.ResponseUri,
+                errorMessage = response.ErrorMessage,
+            };
+
+            _logger.Information("Request completed, Request: {Request}, Response: {Response}",
+                JsonConvert.SerializeObject(requestToLog),
+                JsonConvert.SerializeObject(responseToLog)
+            );
         }
     }
 }
