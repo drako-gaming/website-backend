@@ -163,6 +163,18 @@ namespace Drako.Api.TwitchApiClient
             return response.data.Count > 0;
         }
 
+        public async Task<IList<Redemption>> GetRedemptions(string accessToken, string rewardId)
+        {
+            var request = new RestRequest("helix/channel_points/custom_rewards/redemptions", Method.GET);
+            request.AddHeader("Authorization", $"Bearer {accessToken}");
+            request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
+            request.AddQueryParameter("reward_id", rewardId);
+            request.AddQueryParameter("status", "UNFULFILLED");
+
+            var response = await ExecuteAsync<Envelope<Redemption>>(request);
+            return response.data;
+        }
+        
         public async Task MarkRedemptionFulfilled(string accessToken, string eventId, string rewardId)
         {
             var request = new RestRequest("helix/channel_points/custom_rewards/redemptions", Method.PATCH);

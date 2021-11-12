@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using Drako.Api.Controllers.Webhooks;
+using Drako.Api.TwitchApiClient;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
@@ -24,9 +25,9 @@ namespace Drako.Api.Tests
             var rewardEventId = Guid.NewGuid().ToString();
             var response = await application.CallWebhook(
                 "channel.channel_points_custom_reward_redemption.add",
-                new Notification<RewardEvent>
+                new Notification<Redemption>
                 {
-                    Event = new RewardEvent
+                    Event = new Redemption
                     {
                         id = rewardEventId,
                         reward = new Reward
@@ -61,9 +62,9 @@ namespace Drako.Api.Tests
             var rewardEventId = Guid.NewGuid().ToString();
             var response = await application.CallWebhook(
                 "channel.channel_points_custom_reward_redemption.add",
-                new Notification<RewardEvent>
+                new Notification<Redemption>
                 {
-                    Event = new RewardEvent
+                    Event = new Redemption
                     {
                         id = rewardEventId,
                         reward = new Reward

@@ -1,6 +1,8 @@
-namespace Drako.Api.Controllers.Webhooks
+using Drako.Api.Controllers.Webhooks;
+
+namespace Drako.Api.TwitchApiClient
 {
-    public class RewardEvent
+    public class Redemption
     {
         public string id { get; set; }
         public string user_id { get; set; }

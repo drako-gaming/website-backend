@@ -1,7 +1,9 @@
 using System.Net;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Drako.Api.TwitchApiClient;
+using Microsoft.Extensions.Options;
 using Quartz;
 using StackExchange.Redis;
 
@@ -10,17 +12,23 @@ namespace Drako.Api.Jobs
     public class SyncWithTwitchJob : IJob
     {
         private readonly IDatabase _redis;
+        private readonly UserDataStore _userDataStore;
         private readonly OwnerInfoDataStore _ownerInfoDataStore;
         private readonly TwitchApi _twitchApiClient;
+        private readonly IOptions<RewardOptions> _rewardOptions;
 
         public SyncWithTwitchJob(
             IDatabase redis,
+            UserDataStore userDataStore,
             OwnerInfoDataStore ownerInfoDataStore,
-            TwitchApi twitchApiClient)
+            TwitchApi twitchApiClient,
+            IOptions<RewardOptions> rewardOptions)
         {
             _redis = redis;
+            _userDataStore = userDataStore;
             _ownerInfoDataStore = ownerInfoDataStore;
             _twitchApiClient = twitchApiClient;
+            _rewardOptions = rewardOptions;
         }
         
         public async Task Execute(IJobExecutionContext context)
@@ -31,6 +39,7 @@ namespace Drako.Api.Jobs
                 await SyncModerators(tokenInfo.AccessToken);
                 await SyncSubscribers(tokenInfo.AccessToken);
                 await SyncOnlineStatus(tokenInfo.AccessToken);
+                await FulfillRewardsAsync(tokenInfo.AccessToken);
             }
             catch (ApiException e)
             {
@@ -41,6 +50,7 @@ namespace Drako.Api.Jobs
                     await SyncModerators(newTokens.AccessToken);
                     await SyncSubscribers(newTokens.AccessToken);
                     await SyncOnlineStatus(newTokens.AccessToken);
+                    await FulfillRewardsAsync(newTokens.AccessToken);
                 }
                 else
                 {
@@ -95,6 +105,35 @@ namespace Drako.Api.Jobs
             else
             {
                 await _redis.StringSetAsync("online", 0);
+            }
+        }
+
+        private async Task FulfillRewardsAsync(string accessToken)
+        {
+            foreach (var rewardId in _rewardOptions.Value.Keys)
+            {
+                var redemptions = await _twitchApiClient.GetRedemptions(accessToken, rewardId);
+                var rewardIdForMatching = rewardId.Replace("-", "").ToLowerInvariant();
+
+                foreach (var redemption in redemptions)
+                {
+                    long awardValue = _rewardOptions.Value[rewardIdForMatching];
+                    string eventId = redemption.id;
+                    string userId = redemption.user_id;
+
+                    await _userDataStore.AddCurrencyAsync(
+                        userId,
+                        awardValue,
+                        $"Reward {rewardId} redeemed.",
+                        $"redemption:{eventId}"
+                    );
+
+                    await _twitchApiClient.MarkRedemptionFulfilled(
+                        accessToken,
+                        eventId,
+                        rewardId
+                    );
+                }
             }
         }
     }

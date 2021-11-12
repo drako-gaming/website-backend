@@ -139,12 +139,12 @@ namespace Drako.Api
 
                 q.ScheduleJob<AddCurrencyJob>(trigger =>
                     trigger.StartNow()
-                        .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+                        .WithCronSchedule("0 0/5 * ? * * *")
                         .WithIdentity("Add currency")
                 );
                 q.ScheduleJob<SyncWithTwitchJob>(trigger =>
                     trigger.StartNow()
-                        .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                        .WithCronSchedule("0 1 * ? * * *")
                         .WithIdentity("Sync with Twitch"));
             });
 
