@@ -113,11 +113,10 @@ namespace Drako.Api.Jobs
             foreach (var rewardId in _rewardOptions.Value.Keys)
             {
                 var redemptions = await _twitchApiClient.GetRedemptions(accessToken, rewardId);
-                var rewardIdForMatching = rewardId.Replace("-", "").ToLowerInvariant();
 
                 foreach (var redemption in redemptions)
                 {
-                    long awardValue = _rewardOptions.Value[rewardIdForMatching];
+                    long awardValue = _rewardOptions.Value[rewardId];
                     string eventId = redemption.id;
                     string userId = redemption.user_id;
 
