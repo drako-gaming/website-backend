@@ -171,13 +171,13 @@ namespace Drako.Api.TwitchApiClient
             request.AddQueryParameter("broadcaster_id", _twitchOptions.Value.OwnerUserId);
             request.AddQueryParameter("reward_id", rewardId);
             request.AddJsonBody(new { status = "FULFILLED" });
-            var response = await ExecuteAsync<object>(request);
-            LogRequest(request, response);
+            await ExecuteAsync<object>(request);
         }
 
         private async Task<T> ExecuteAsync<T>(IRestRequest request)
         {
             var response = await _client.ExecuteAsync<T>(request);
+            LogRequest(request, response);
             if (response.IsSuccessful) return response.Data;
 
             throw new ApiException(response);
