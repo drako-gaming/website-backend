@@ -7,11 +7,13 @@ namespace Drako.Api.Jobs
 {
     public class AddCurrencyJob : IJob
     {
+        private readonly UnitOfWorkFactory _uowFactory;
         private readonly UserDataStore _userDataStore;
         private readonly IDatabase _redis;
 
-        public AddCurrencyJob(UserDataStore userDataStore, IDatabase redis)
+        public AddCurrencyJob(UnitOfWorkFactory uowFactory, UserDataStore userDataStore, IDatabase redis)
         {
+            _uowFactory = uowFactory;
             _userDataStore = userDataStore;
             _redis = redis;
         }
@@ -27,10 +29,13 @@ namespace Drako.Api.Jobs
 
             var userTwitchIds = await _redis.SetMembersAsync("presenceCopy");
 
+            await using var uow = await _uowFactory.CreateAsync();
             foreach (string userTwitchId in userTwitchIds)
             {
-                await _userDataStore.AddCurrencyAsync(userTwitchId, coinAward, "Automatically added");
+                await _userDataStore.AddCurrencyAsync(uow, userTwitchId, coinAward, "Automatically added");
             }
+
+            await uow.CommitAsync();
         }
     }
 }

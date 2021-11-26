@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using AspNet.Security.OAuth.Twitch;
 using Dapper;
@@ -47,7 +49,14 @@ namespace Drako.Api
                 options.KnownNetworks.Clear();
                 options.KnownProxies.Clear();
             });
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(cfg =>
+                {
+                    cfg.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    cfg.JsonSerializerOptions.NumberHandling =
+                        JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString;
+                    cfg.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+                });
             services.AddSignalR();
             services.AddSwaggerGen(c =>
             {
@@ -145,12 +154,16 @@ namespace Drako.Api
                 q.ScheduleJob<SyncWithTwitchJob>(trigger =>
                     trigger.StartNow()
                         .WithCronSchedule("0 1 * ? * * *")
-                        .WithIdentity("Sync with Twitch"));
+                        .WithIdentity("Sync with Twitch")
+                );
             });
 
             services.AddTransient<AddCurrencyJob>();
+            services.AddTransient<SyncWithTwitchJob>();
 
             services.AddQuartzHostedService();
+
+            services.AddSingleton<UnitOfWorkFactory>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

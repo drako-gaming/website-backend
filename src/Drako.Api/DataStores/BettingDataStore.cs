@@ -6,7 +6,6 @@ using Dapper;
 using Drako.Api.Configuration;
 using Drako.Api.Controllers;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using Npgsql;
 
 namespace Drako.Api.DataStores
@@ -20,46 +19,67 @@ namespace Drako.Api.DataStores
             _options = options;
         }
         
-        public async Task<string> GetBettingStatusAsync()
+        public async Task<BettingResource> GetBetGameAsync(UnitOfWork uow, long gameId, string userTwitchId)
         {
             const string sql = @"
-                SELECT status FROM games g
-                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = g.Id
+                SELECT game_options.id, description, odds, MAX(wagers.id) AS latest_wager_id, CAST(SUM(amount) AS BIGINT) AS total
+                FROM game_options
+                LEFT JOIN wagers ON wagers.game_option_id = game_options.id
+                WHERE game_options.game_id = :gameId
+                GROUP BY game_options.id
+                ORDER BY game_options.id;
+
+                SELECT g.id, status, winner, maximum_bet, objective, winner, CAST(SUM(amount) AS BIGINT) AS total
+                FROM games g 
+                LEFT JOIN wagers ON wagers.game_id = g.id
+                WHERE g.id = :gameId
+                GROUP BY g.id;
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            return await connection.ExecuteScalarAsync<string>(sql, new
+            var result = await uow.Connection.QueryMultipleAsync(sql, new { gameId }, uow.Transaction);
+
+            var options = await result.ReadAsync();
+            var resource = await result.ReadFirstAsync();
+            var showOptionTotals = resource.status != "Open";
+
+            return new BettingResource
             {
-            }) ?? BettingStatus.Canceled;
+                Id = gameId,
+                MaximumBet = resource.maximum_bet,
+                Objective = resource.objective,
+                Status = resource.status,
+                WinningOption = resource.winner,
+                Options = options.Select(
+                    x => new BettingOption
+                    {
+                        Id = x.id,
+                        Description = x.description,
+                        Odds = x.odds,
+                        Total = showOptionTotals ? x.total ?? 0L : 0L
+                    }
+                ).ToList(),
+                Total = resource.total ?? 0L,
+                AlreadyBet = await HasUserAlreadyBetAsync(uow, gameId, userTwitchId)
+            };
         }
-        
-        public async Task SetBettingStatusAsync(string status)
+
+        public async Task SetBettingStatusAsync(UnitOfWork uow, long gameId, string status)
         {
             const string sql = @"
-                WITH cg AS (
-                    INSERT INTO games (status, options)
-                    SELECT @status, NULL
-                    WHERE 'Opening' = @status
-                    RETURNING *
-                )
-                UPDATE junk
-                SET value = cg.Id
-                FROM cg
-                WHERE name = 'ActiveBetId';
-
                 UPDATE games g
-                SET status = @status
-                FROM junk j 
-                WHERE 
-                    j.name = 'ActiveBetId'
-                    AND g.id = j.value;
+                SET status = :status
+                WHERE g.id = :gameId;
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var rowsAffected = await connection.ExecuteAsync(sql, new
-            {
-                status
-            });
+            var rowsAffected = await uow.Connection.ExecuteAsync(
+                sql,
+                new
+                {
+                    status,
+                    gameId
+                },
+                uow.Transaction
+            );
 
             if (rowsAffected == 0)
             {
@@ -67,105 +87,74 @@ namespace Drako.Api.DataStores
             }
         }
 
-        public async Task<int?> GetWinnerAsync()
-        {
-            const string sql = @"
-                        SELECT winner
-                        FROM games cg
-                        INNER JOIN junk j
-                        ON j.name = 'ActiveBetId' AND j.value = cg.id
-                    ";
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            return await connection.ExecuteScalarAsync<int?>(sql);
-        }
-        
-        public async Task<bool> HasUserAlreadyBetAsync(string userTwitchId)
+        public async Task<bool> HasUserAlreadyBetAsync(UnitOfWork uow, long gameId, string userTwitchId)
         {
             const string sql = @"
                 SELECT COUNT(cw.Id) FROM wagers cw
-                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = cw.game_id
                 INNER JOIN users u ON cw.user_id = u.id
-                WHERE u.user_twitch_id = :userTwitchId;
+                WHERE u.user_twitch_id = :userTwitchId AND cw.game_id = :gameId;
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            return await connection.ExecuteScalarAsync<int>(sql, new
+            return await uow.Connection.ExecuteScalarAsync<int>(sql, new
             {
-                userTwitchId
-            }) > 0;
+                userTwitchId,
+                gameId
+            }, uow.Transaction) > 0;
         }
 
         
-        public async Task<BettingOption> SetWinnerAsync(
-            int winner)
+        public async Task SetWinnerAsync(
+            UnitOfWork uow,
+            long gameId,
+            long winner)
         {
             const string sql = @"
                         UPDATE games cg
-                        SET winner = @winner
-                        FROM junk j
-                        WHERE j.name = 'ActiveBetId'
-                        AND j.value = cg.Id
+                        SET winner = :winner
+                        WHERE id = :gameId
                     ";
-            await using (var connection = new NpgsqlConnection(_options.Value.ConnectionString))
+
+            var rowsAffected = await uow.Connection.ExecuteAsync(
+                sql,
+                new
+                {
+                    winner,
+                    gameId
+                }, uow.Transaction
+            );
+
+            if (rowsAffected == 0)
             {
-                var rowsAffected = await connection.ExecuteAsync(sql, new
-                {
-                    winner
-                });
-
-                if (rowsAffected == 0)
-                {
-                    throw new Exception();
-                }
+                throw new Exception();
             }
-
-            return (await GetOptionsAsync()).First(x => x.Id == winner);
         }
 
-        public async Task<IList<BettingOption>> GetOptionsAsync()
+        public async Task RecordBetAsync(UnitOfWork uow, long gameId, string userTwitchId, long optionId, long amount)
         {
             const string sql = @"
-                SELECT Options
-                FROM games cg
-                INNER JOIN junk j ON j.name = 'ActiveBetId' AND j.value = cg.id
+                WITH w AS (
+                    INSERT INTO wagers (game_id, user_id, amount, game_option_id)
+                    SELECT :gameId, u.id, :Amount, :OptionId
+                    FROM users u
+                    WHERE u.user_twitch_id = :userTwitchId
+                    RETURNING wagers.id
+                )
+                SELECT MAX(id) as maxId, SUM(amount) as total
+                FROM wagers w1
+                WHERE game_id = :gameId;
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var result = await connection.ExecuteScalarAsync<string>(sql);
-
-            if (result == null)
-            {
-                return new List<BettingOption>();
-            }
-
-            var options = JsonConvert.DeserializeObject<Tuple<string, int, int>[]>(result);
-
-            return options
-                .Select((x, i) => new BettingOption
+            var rowsAffected = await uow.Connection.ExecuteAsync(
+                sql,
+                new
                 {
-                    Id = i,
-                    Description = x.Item1,
-                    Odds = $"{x.Item2}:${x.Item3}"
-                })
-                .ToArray();
-        }
-        
-        public async Task SetMaximumBetAsync(int maximumBet)
-        {
-            const string sql = @"
-                UPDATE games g
-                SET maximum_bet = :maximumBet
-                FROM junk j
-                WHERE
-                    j.name = 'ActiveBetId'
-                    AND g.id = j.value;
-            ";
-            
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var rowsAffected = await connection.ExecuteAsync(sql, new
-            {
-                maximumBet
-            });
+                    userTwitchId,
+                    amount,
+                    optionId,
+                    gameId
+                },
+                uow.Transaction
+            );
 
             if (rowsAffected == 0)
             {
@@ -173,79 +162,96 @@ namespace Drako.Api.DataStores
             }
         }
         
-        public async Task SetOptionsAsync(IList<BettingOption> options)
+        public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId)
         {
             const string sql = @"
-                UPDATE games cg
-                SET Options = @options
-                FROM junk j
-                WHERE j.name = 'ActiveBetId'
-                AND j.value = cg.id
-            ";
-            
-            var fullOptions = options
-                .Select(x => Tuple.Create(x.Description, x.OddsImpl.Numerator, x.OddsImpl.Denominator))
-                .ToArray();
-
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var rowsAffected = await connection.ExecuteAsync(sql, new
-            {
-                options = JsonConvert.SerializeObject(fullOptions)
-            });
-
-            if (rowsAffected == 0)
-            {
-                throw new Exception();
-            }
-        }
-        
-        public async Task RecordBetAsync(string userTwitchId, int optionId, int amount)
-        {
-            const string sql = @"
-                INSERT INTO wagers (game_id, user_id, amount, option)
-                SELECT j.value, u.id, :Amount, :OptionId
-                FROM junk j
-                CROSS JOIN users u
-                WHERE j.name = 'ActiveBetId'
-                AND u.user_twitch_id = :userTwitchId
-            ";
-
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var rowsAffected = await connection.ExecuteAsync(sql, new
-            {
-                userTwitchId,
-                amount,
-                optionId
-            });
-
-            if (rowsAffected == 0)
-            {
-                throw new Exception();
-            }
-        }
-        
-        public async Task<IList<BetResource>> GetBetsAsync()
-        {
-            const string sql = @"
-                SELECT user_twitch_id, amount, option 
+                SELECT user_twitch_id, amount, game_option_id
                 FROM wagers w
                 INNER JOIN users u ON u.id = w.user_id
-                INNER JOIN junk j on j.name = 'ActiveBetId'
-                    AND j.value = w.game_id
+                WHERE game_id = :gameId
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var result = await connection.QueryAsync(sql);
+            var result = await uow.Connection.QueryAsync(sql, new { gameId }, uow.Transaction);
 
             return result
                 .Select(x => new BetResource
                 {
-                    Amount = x.Item1.amount,
-                    OptionId = int.Parse(x.option),
-                    UserTwitchId = x.usertwitchid
+                    Amount = x.amount,
+                    OptionId = x.game_option_id,
+                    UserTwitchId = x.user_twitch_id
                 })
                 .ToList();
         }
-        
+
+        public async Task<IList<BetSummaryResource>> GetBetsSummaryAsync(long gameId, bool groupByOption)
+        {
+            const string sqlTemplate = @"
+                SELECT /**select**/
+                FROM wagers w 
+                WHERE game_id = :gameId
+                /**groupby**/
+            ";
+            
+            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+            var builder = new SqlBuilder();
+            builder.Select("MAX(w.id) maximum_wager_id");
+            builder.Select("SUM(w.amount) total");
+            builder.AddParameters(new { gameId });
+            if (groupByOption)
+            {
+                builder.Select("option");
+                builder.GroupBy("option");
+            }
+
+            var sql = builder.AddTemplate(sqlTemplate);
+            return connection.Query(sql.RawSql, sql.Parameters)
+                .Select(x => new BetSummaryResource
+                {
+                    Amount = x.total,
+                    MaximumWagerId = x.maximum_wager_id,
+                    OptionId = x.option
+                })
+                .ToList();
+        }
+
+        public async Task<long> NewBettingGame(UnitOfWork uow, string objective, long? maximumBet, IList<BettingOption> options)
+        {
+            const string sql = @"
+                INSERT INTO games (objective, status, maximum_bet)
+                SELECT :objective, 'Open', :maximumBet
+                RETURNING id
+            ";
+
+            const string optionsSql = @"
+                INSERT INTO game_options(game_id, odds, description)
+                VALUES (:gameId, :odds, :description);
+            ";
+            
+            var gameId = await uow.Connection.ExecuteScalarAsync<long>(
+                sql,
+                new
+                {
+                    objective,
+                    maximumBet,
+                },
+                uow.Transaction
+            );
+
+            foreach (var option in options)
+            {
+                await uow.Connection.ExecuteAsync(
+                    optionsSql,
+                    new
+                    {
+                        gameId,
+                        odds = option.Odds,
+                        description = option.Description
+                    },
+                    uow.Transaction
+                );
+            }
+
+            return gameId;
+        }
     }
 }

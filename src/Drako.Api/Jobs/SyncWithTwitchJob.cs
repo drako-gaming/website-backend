@@ -12,6 +12,7 @@ namespace Drako.Api.Jobs
     public class SyncWithTwitchJob : IJob
     {
         private readonly IDatabase _redis;
+        private readonly UnitOfWorkFactory _uowFactory;
         private readonly UserDataStore _userDataStore;
         private readonly OwnerInfoDataStore _ownerInfoDataStore;
         private readonly TwitchApi _twitchApiClient;
@@ -19,12 +20,14 @@ namespace Drako.Api.Jobs
 
         public SyncWithTwitchJob(
             IDatabase redis,
+            UnitOfWorkFactory uowFactory,
             UserDataStore userDataStore,
             OwnerInfoDataStore ownerInfoDataStore,
             TwitchApi twitchApiClient,
             IOptions<RewardOptions> rewardOptions)
         {
             _redis = redis;
+            _uowFactory = uowFactory;
             _userDataStore = userDataStore;
             _ownerInfoDataStore = ownerInfoDataStore;
             _twitchApiClient = twitchApiClient;
@@ -120,12 +123,15 @@ namespace Drako.Api.Jobs
                     string eventId = redemption.id;
                     string userId = redemption.user_id;
 
+                    await using var uow = await _uowFactory.CreateAsync();
                     await _userDataStore.AddCurrencyAsync(
+                        uow,
                         userId,
                         awardValue,
                         $"Reward {rewardId} redeemed.",
                         $"redemption:{eventId}"
                     );
+                    await uow.CommitAsync();
 
                     await _twitchApiClient.MarkRedemptionFulfilled(
                         accessToken,

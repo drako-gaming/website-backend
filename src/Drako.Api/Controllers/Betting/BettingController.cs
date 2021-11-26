@@ -2,155 +2,139 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Drako.Api.DataStores;
-using Drako.Api.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
 
-namespace Drako.Api.Controllers
+namespace Drako.Api.Controllers.Betting
 {
     [Authorize]
     [ApiController]
-    [Route("betting")]
+    [Route("betting/{id?}")]
     public class BettingController:Controller
     {
+        private readonly UnitOfWorkFactory _uowFactory;
         private readonly BettingDataStore _bettingDataStore;
         private readonly UserDataStore _userDataStore;
-        private readonly IHubContext<UserHub, IUserHub> _userHub;
 
         public BettingController(
+            UnitOfWorkFactory uowFactory,
             BettingDataStore bettingDataStore,
-            UserDataStore userDataStore,
-            IHubContext<UserHub, IUserHub> userHub)
+            UserDataStore userDataStore)
         {
+            _uowFactory = uowFactory;
             _bettingDataStore = bettingDataStore;
             _userDataStore = userDataStore;
-            _userHub = userHub;
         }
         
         [HttpGet]
-        public async Task<IActionResult> Status()
+        public async Task<IActionResult> Status([FromRoute] long id)
         {
-            var status = await _bettingDataStore.GetBettingStatusAsync();
-            var options = await _bettingDataStore.GetOptionsAsync();
-            var winner = await _bettingDataStore.GetWinnerAsync();
+            await using var uow = await _uowFactory.CreateAsync();
+            var resource = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            return Ok(resource);
+        }
 
-            return Ok(
-                new BettingResource
-                {
-                    Options = options,
-                    Status = status,
-                    WinningOption = winner
-                }
+        [HttpPost]
+        [Authorize(Roles = "moderator")]
+        public async Task<IActionResult> Open([FromBody] BettingResource model)
+        {
+            await using var uow = await _uowFactory.CreateAsync();
+            var id = await _bettingDataStore.NewBettingGame(uow, model.Objective, model.MaximumBet, model.Options);
+            var resource = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            uow.OnCommit(async hub => await hub.Clients.All.BetStatusChanged(resource));
+            await uow.CommitAsync();
+            return CreatedAtAction(
+                "Status",
+                new { id },
+                resource
             );
         }
 
-        [HttpPost]
+        [HttpPatch]
         [Authorize(Roles = "moderator")]
-        [Route("open")]
-        public async Task<IActionResult> Open([FromBody] BettingResource model)
+        public async Task<IActionResult> HttpPatchAttribute([FromRoute] long id, [FromBody] BettingPatchResource model)
         {
-            var currentStatus = await _bettingDataStore.GetBettingStatusAsync();
-            if (currentStatus != null &&
-                (currentStatus != BettingStatus.Canceled && currentStatus != BettingStatus.Done))
+            await using var uow = await _uowFactory.CreateAsync();
+            var game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            switch (game.Status, model.Status)
             {
-                // There is already a betting round in progress
-                return BadRequest();
+                case (BettingStatus.Open, BettingStatus.Closed):
+                case (BettingStatus.Open, BettingStatus.Canceled):
+                case (BettingStatus.Closed, BettingStatus.Canceled):
+                    await _bettingDataStore.SetBettingStatusAsync(uow, id, model.Status);
+                    break;
+                
+                case (BettingStatus.Closed, BettingStatus.Done):
+                    if (model.WinningOption == null)
+                    {
+                        return BadRequest();
+                    }
+                    await Winner(uow, game, model.WinningOption.Value);
+                    break;
+                
+                default:
+                    return Conflict(game);
             }
 
-            await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Opening);
-            if (model.MaximumBet != null)
-            {
-                await _bettingDataStore.SetMaximumBetAsync(model.MaximumBet.Value);
-            }
-
-            await _bettingDataStore.SetOptionsAsync(model.Options);
-            await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Open);
-
-            await _userHub.Clients.All.BetStatusChanged();
-            return await Status();
+            game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            uow.OnCommit(async hub => await hub.Clients.All.BetStatusChanged(game));
+            await uow.CommitAsync();
+            return Ok(game);
         }
 
-        [HttpPost]
-        [Authorize(Roles = "moderator")]
-        [Route("close")]
-        public async Task<IActionResult> Close()
+        private async Task Winner(UnitOfWork uow, BettingResource game, long winner)
         {
-            var currentStatus = await _bettingDataStore.GetBettingStatusAsync();
-            if (currentStatus != BettingStatus.Open)
-            {
-                return Conflict(await Status());
-            }
+            await _bettingDataStore.SetBettingStatusAsync(uow, game.Id, BettingStatus.Done);
+            var winningOption = game.Options.First(x => x.Id == winner);
 
-            await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Closed);
-            
-            await _userHub.Clients.All.BetStatusChanged();
-            return await Status();
-        }
-
-        [HttpPost]
-        [Authorize(Roles = "moderator")]
-        [Route("winner")]
-        public async Task<IActionResult> Winner([FromBody] BettingWinnerResource model)
-        {
-            var currentStatus = await _bettingDataStore.GetBettingStatusAsync();
-            if (currentStatus == BettingStatus.Canceled)
-            {
-                return Conflict(await Status());
-            }
-            
-            await _bettingDataStore.SetBettingStatusAsync(BettingStatus.Done);
-            var winningOption = await _bettingDataStore.SetWinnerAsync(model.OptionId);
-
-            var result = await _bettingDataStore.GetBetsAsync();
-            if (result == null) return null;
+            var result = await _bettingDataStore.GetBetsAsync(uow, game.Id);
+            if (result == null) return;
             var totalBets = result.Sum(x => x.Amount);
             var winners = result
-                .Where(bet => bet.OptionId == model.OptionId)
+                .Where(bet => bet.OptionId == winner)
                 .ToArray();
 
             var winningOdds = winningOption.OddsImpl;
             decimal multiplier = winningOdds.WinMultiplier(totalBets, winners.Sum(x => x.Amount));
-            
+
+            await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner);
             foreach (var winningBet in winners)
             {
                 var payout = (int)Math.Floor(multiplier * winningBet.Amount);
                 winningBet.Amount = payout;
-                await _userDataStore.AddCurrencyAsync(winningBet.UserTwitchId, payout, "Betting payout");
+                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, payout, "Betting payout");
             }
-
-            await _userHub.Clients.All.BetStatusChanged();
-            return await Status();
         }
 
         [HttpPost]
         [Route("bet")]
-        public async Task<IActionResult> PlaceBet([FromBody] BetResource model)
+        public async Task<IActionResult> PlaceBet([FromRoute] long id, [FromBody] BetResource model)
         {
-            var gambleStatus = await _bettingDataStore.GetBettingStatusAsync();
-            if (gambleStatus != BettingStatus.Closed)
+            await using var uow = await _uowFactory.CreateAsync();
+            var game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            if (game.Status != BettingStatus.Open)
             {
-                return Conflict(await Status());
+                return Conflict(game);
             }
 
-            var currency = await _userDataStore.GetCurrencyAsync(this.User.TwitchId());
+            var currency = await _userDataStore.GetCurrencyAsync(uow, this.User.TwitchId());
             if (model.Amount > currency)
             {
-                //return new PlaceBetResponse(PlaceBetResult.AlreadyBet, request.User, _formatter, _botResultFactory);
-                return BadRequest();
+                ModelState.AddModelError(nameof(model.Amount), "You don't have that many scales to bet");
+                return BadRequest(ModelState);
             }
 
             if (model.Amount <= 0)
             {
-                //return new PlaceBetResponse(PlaceBetResult.NegativeAmount, request.User, _formatter, _botResultFactory);
-                return BadRequest();
+                ModelState.AddModelError(nameof(model.Amount), "You must bet at least 1 scale");
+                return BadRequest(ModelState);
             }
 
-            var numberOfOptions = (await _bettingDataStore.GetOptionsAsync()).Count;
-            if (model.OptionId <= 0 || model.OptionId > numberOfOptions)
+            var selectedOption = game.Options.SingleOrDefault(x => x.Id == model.OptionId);
+            if (selectedOption == null)
             {
-                //return new PlaceBetResponse(PlaceBetResult.InvalidOption, model.User, _formatter, _botResultFactory);
-                return BadRequest();
+                ModelState.AddModelError(nameof(model.OptionId), "You must select a valid option");
+                return BadRequest(ModelState);
             }
 
             /*int? maximum = await _bettingDataStore.GetMaximumBetAsync(model.Channel);
@@ -160,16 +144,19 @@ namespace Drako.Api.Controllers
                 return BadRequest();
             }*/
 
-            if (await _bettingDataStore.HasUserAlreadyBetAsync(this.User.TwitchId()))
+            if (await _bettingDataStore.HasUserAlreadyBetAsync(uow, id, User.TwitchId()))
             {
-                //return new PlaceBetResponse(model.User, _formatter, _botResultFactory);
+                ModelState.AddModelError(nameof(model.UserTwitchId), "You cannot bet more than once");
                 return BadRequest();
             }
 
-            await _bettingDataStore.RecordBetAsync(User.TwitchId(), model.OptionId, model.Amount);
-            await _userDataStore.RemoveCurrencyAsync(User.TwitchId(), model.Amount, "Bet placed");
+            await _bettingDataStore.RecordBetAsync(uow, id, User.TwitchId(), model.OptionId, model.Amount);
+            await _userDataStore.RemoveCurrencyAsync(uow, User.TwitchId(), model.Amount, "Bet placed");
+            game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            uow.OnCommit(async hub => await hub.Clients.All.BetStatusChanged(game));
+            await uow.CommitAsync();
 
-            return await Status();
+            return Ok(game);
         }
     }
 }

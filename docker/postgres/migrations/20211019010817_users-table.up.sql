@@ -22,6 +22,7 @@ create table transactions (
     amount bigint not null,
     balance bigint not null,
     reason character varying(300) not null,
+    unique_id text null unique,
     constraint fk_user foreign key(user_id) references users(id)
 );
 

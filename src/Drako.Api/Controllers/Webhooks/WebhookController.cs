@@ -16,6 +16,7 @@ namespace Drako.Api.Controllers.Webhooks
     {
         private readonly ILogger _logger;
         private readonly IDatabase _redis;
+        private readonly UnitOfWorkFactory _uowFactory;
         private readonly UserDataStore _userDataStore;
         private readonly OwnerInfoDataStore _ownerInfoDataStore;
         private readonly TwitchApi _twitchApi;
@@ -24,6 +25,7 @@ namespace Drako.Api.Controllers.Webhooks
         public WebhookController(
             ILogger logger,
             IDatabase redis,
+            UnitOfWorkFactory uowFactory,
             UserDataStore userDataStore,
             OwnerInfoDataStore ownerInfoDataStore,
             TwitchApi twitchApi,
@@ -31,6 +33,7 @@ namespace Drako.Api.Controllers.Webhooks
         {
             _logger = logger.ForContext<WebhookController>();
             _redis = redis;
+            _uowFactory = uowFactory;
             _userDataStore = userDataStore;
             _ownerInfoDataStore = ownerInfoDataStore;
             _twitchApi = twitchApi;
@@ -108,7 +111,9 @@ namespace Drako.Api.Controllers.Webhooks
                 string eventId = notification.Event.id;
                 string userId = notification.Event.user_id;
 
+                await using var uow = await _uowFactory.CreateAsync();
                 await _userDataStore.AddCurrencyAsync(
+                    uow,
                     userId,
                     awardValue,
                     $"Reward {notification.Event.reward.id} redeemed.",
@@ -118,6 +123,7 @@ namespace Drako.Api.Controllers.Webhooks
                 try
                 {
                     await _twitchApi.MarkRedemptionFulfilled(tokens.AccessToken, eventId, notification.Event.reward.id);
+                    await uow.CommitAsync();
                 }
                 catch (ApiException e)
                 {

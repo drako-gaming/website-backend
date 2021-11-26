@@ -4,12 +4,14 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Drako.Api.Configuration;
 using Drako.Api.DataStores;
+using Drako.Api.Jobs;
 using Drako.Api.TwitchApiClient;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Quartz.Spi;
 
 namespace Drako.Api.Controllers.Authentication
 {
@@ -110,7 +112,7 @@ namespace Drako.Api.Controllers.Authentication
         }
 
         [Authorize]
-        [HttpGet("resubevents")]
+        [HttpGet("admin/resubevents")]
         public async Task<IActionResult> Resubscribe(bool force = false)
         {
             var appAccessToken = await _twitchApi.GetAppAccessToken();

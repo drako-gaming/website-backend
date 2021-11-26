@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using Drako.Api.Controllers.Webhooks;
+using Drako.Api.Tests.Support;
 using Drako.Api.TwitchApiClient;
 using Shouldly;
 using Xunit;
@@ -45,7 +46,8 @@ namespace Drako.Api.Tests
                 () => responseContent.ShouldBe("")
             );
 
-            var transactionsResponse = await application.Get(
+            var client = await application.LoginUser(TestIds.Users.Moderator);
+            var transactionsResponse = await client.Get(
                 "/transactions",
                 new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );
@@ -82,7 +84,8 @@ namespace Drako.Api.Tests
                 () => responseContent.ShouldBe("")
             );
 
-            var transactionsResponse = await application.Get(
+            var client = await application.LoginUser(TestIds.Users.Moderator);
+            var transactionsResponse = await client.Get(
                 "/transactions",
                 new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );

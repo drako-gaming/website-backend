@@ -3,8 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Drako.Api.Configuration;
-using Drako.Api.Hubs;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -13,12 +11,10 @@ namespace Drako.Api.DataStores
     public class UserDataStore
     {
         private readonly IOptions<DatabaseOptions> _options;
-        private readonly IHubContext<UserHub, IUserHub> _userHub;
 
-        public UserDataStore(IOptions<DatabaseOptions> options, IHubContext<UserHub, IUserHub> userHub)
+        public UserDataStore(IOptions<DatabaseOptions> options)
         {
             _options = options;
-            _userHub = userHub;
         }
 
         public async Task SaveUserAsync(string userTwitchId, string loginName, string displayName)
@@ -58,33 +54,30 @@ namespace Drako.Api.DataStores
             return await connection.QuerySingleAsync(sql, new { userTwitchId });
         }
         
-        public async Task<long> GetCurrencyAsync(string userTwitchId)
+        public async Task<long> GetCurrencyAsync(UnitOfWork uow, string userTwitchId)
         {
             const string sql = @"
                 SELECT cuc.balance
                 FROM users cuc
                 WHERE cuc.user_twitch_id = @userTwitchId
                 ";
-            
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            return await connection.ExecuteScalarAsync<long>(sql, new
+
+            return await uow.Connection.ExecuteScalarAsync<long>(sql, new
             {
                 userTwitchId,
-            });
+            }, uow.Transaction);
         }
         
-        public async Task AddCurrencyAsync(string userTwitchId, long amount, string reason, string uniqueId = null)
+        public async Task AddCurrencyAsync(UnitOfWork uow, string userTwitchId, long amount, string reason, string uniqueId = null)
         {
-            const string sql = @"
+            const string sqlTemplate = @"
                 WITH up AS (
                     INSERT INTO users (user_twitch_id, login_name, display_name, balance, last_updated)
                     SELECT @userTwitchId, 'user', 'user', @amount, @date
                     ON CONFLICT (user_twitch_id) DO UPDATE
                     SET balance = users.balance + @amount,
                         last_updated = @date
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM transactions WHERE unique_id != NULL AND unique_id = @uniqueId
-                    )
+                    /**where**/
                     RETURNING id, balance
                 ), i AS (
                     INSERT INTO transactions (user_id, date, amount, balance, reason, unique_id)
@@ -95,23 +88,37 @@ namespace Drako.Api.DataStores
                 SELECT id, balance FROM i;
                 ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var result = (await connection.QueryAsync(sql, new
+            var builder = new SqlBuilder();
+            if (uniqueId != null)
+            {
+                builder.Where("NOT EXISTS (SELECT 1 FROM transactions WHERE unique_id = @uniqueId");
+            }
+
+            var sql = builder.AddTemplate(sqlTemplate, new
             {
                 userTwitchId,
                 amount,
                 reason,
                 date = DateTime.UtcNow,
                 uniqueId
-            })).FirstOrDefault();
+            });
+            var result = (
+                await uow.Connection.QueryAsync(
+                    sql.RawSql,
+                    sql.Parameters,
+                    uow.Transaction
+                )
+            ).SingleOrDefault();
 
             if (result != null)
             {
-                await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
+                uow.OnCommit(async hub =>
+                    await hub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance)
+                );
             }
         }
 
-        public async Task RemoveCurrencyAsync(string userTwitchId, int amount, string reason)
+        public async Task RemoveCurrencyAsync(UnitOfWork uow, string userTwitchId, long amount, string reason)
         {
             const string sql = @"
                 WITH up AS (
@@ -119,26 +126,31 @@ namespace Drako.Api.DataStores
                     SET balance = balance - @amount,
                         last_updated = @date
                     WHERE user_twitch_id = @userTwitchId
-                    RETURNING user_twitch_id, balance
+                    RETURNING id, balance
                 ), i AS (
                     INSERT INTO transactions (user_id, date, amount, balance, reason)
-                    SELECT up.id, @date, -@amount, up.balance, reason
+                    SELECT up.id, @date, -@amount, up.balance, @reason
                     FROM up
                     RETURNING id, balance
                 )
                 SELECT id, balance FROM i;
             ";
 
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
-            var result = (await connection.QueryAsync(sql, new
-            {
-                userTwitchId,
-                amount,
-                reason,
-                date = DateTime.UtcNow
-            })).First();
-            
-            await _userHub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance);
+            var result = (
+                await uow.Connection.QueryAsync(
+                    sql,
+                    new
+                    {
+                        userTwitchId,
+                        amount,
+                        reason,
+                        date = DateTime.UtcNow
+                    },
+                    uow.Transaction
+                )
+            ).Single();
+
+            uow.OnCommit(async hub => await hub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance));
         }
     }
 }

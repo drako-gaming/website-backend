@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="ApprovalTests" Version="5.7.1" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="5.0.12" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.7.1" />
         <PackageReference Include="Serilog.Sinks.XUnit" Version="2.0.4" />
@@ -27,4 +28,16 @@
       <ProjectReference Include="..\Drako.Api\Drako.Api.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <Content Include="..\appSettings.json" Condition="Exists('../appSettings.json')">
+            <Link>appSettings.json</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="BettingTests.*.approved.txt">
+        <DependentUpon>BettingTests.cs</DependentUpon>
+      </None>
+    </ItemGroup>
 </Project>

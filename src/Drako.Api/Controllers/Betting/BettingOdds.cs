@@ -26,7 +26,7 @@ namespace Drako.Api.Controllers
         public int Numerator { get; }
         public int Denominator { get; }
 
-        public decimal WinMultiplier(int totalBets, int sum)
+        public decimal WinMultiplier(long totalBets, long sum)
         {
             if (Numerator == -1)
             {
