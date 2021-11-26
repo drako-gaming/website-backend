@@ -91,7 +91,7 @@ namespace Drako.Api.DataStores
             var builder = new SqlBuilder();
             if (uniqueId != null)
             {
-                builder.Where("NOT EXISTS (SELECT 1 FROM transactions WHERE unique_id = @uniqueId");
+                builder.Where("NOT EXISTS (SELECT 1 FROM transactions WHERE unique_id = @uniqueId)");
             }
 
             var sql = builder.AddTemplate(sqlTemplate, new

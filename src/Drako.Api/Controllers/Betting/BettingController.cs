@@ -27,11 +27,19 @@ namespace Drako.Api.Controllers.Betting
         }
         
         [HttpGet]
-        public async Task<IActionResult> Status([FromRoute] long id)
+        public async Task<IActionResult> Status([FromRoute] long? id)
         {
             await using var uow = await _uowFactory.CreateAsync();
-            var resource = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
-            return Ok(resource);
+            if (id == null)
+            {
+                var resource = _bettingDataStore.GetLatestBetGameAsync(uow, User.TwitchId());
+                return Ok(resource);
+            }
+            else
+            {
+                var resource = await _bettingDataStore.GetBetGameAsync(uow, id.Value, User.TwitchId());
+                return Ok(resource);
+            }
         }
 
         [HttpPost]

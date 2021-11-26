@@ -18,7 +18,34 @@ namespace Drako.Api.DataStores
         {
             _options = options;
         }
-        
+
+        public async Task<BettingResource> GetLatestBetGameAsync(UnitOfWork uow, string twitchId)
+        {
+            const string sql = @"
+                SELECT id FROM games
+                ORDER BY id DESC
+                LIMIT 1
+            ";
+
+            var result = await uow.Connection.ExecuteScalarAsync<long?>(sql);
+            if (result.HasValue)
+            {
+                return await GetBetGameAsync(uow, result.Value, twitchId);
+            }
+
+            return new BettingResource
+            {
+                Id = 0,
+                MaximumBet = null,
+                Objective = null,
+                Status = BettingStatus.Canceled,
+                WinningOption = null,
+                Options = new List<BettingOption>(),
+                Total = 0L,
+                AlreadyBet = false
+            };
+        }
+
         public async Task<BettingResource> GetBetGameAsync(UnitOfWork uow, long gameId, string userTwitchId)
         {
             const string sql = @"
@@ -102,7 +129,7 @@ namespace Drako.Api.DataStores
             }, uow.Transaction) > 0;
         }
 
-        
+
         public async Task SetWinnerAsync(
             UnitOfWork uow,
             long gameId,
@@ -161,7 +188,7 @@ namespace Drako.Api.DataStores
                 throw new Exception();
             }
         }
-        
+
         public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId)
         {
             const string sql = @"

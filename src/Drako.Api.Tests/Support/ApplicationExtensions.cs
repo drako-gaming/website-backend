@@ -43,7 +43,7 @@ namespace Drako.Api.Tests.Support
             stream.Seek(0, SeekOrigin.Begin);
             var hash = "sha256=" + Convert.ToHexString(await hmac.ComputeHashAsync(stream));
 
-            var client = application.CreateClient(null);
+            var client = application.CreateClient(new CookieContainer());
 
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "/webhook");
             request.Headers.Add("Twitch-Eventsub-Subscription-Type", topic);
