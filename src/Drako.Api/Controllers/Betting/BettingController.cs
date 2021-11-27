@@ -98,6 +98,7 @@ namespace Drako.Api.Controllers.Betting
             var result = await _bettingDataStore.GetBetsAsync(uow, game.Id);
             if (result == null) return;
             var totalBets = result.Sum(x => x.Amount);
+
             var winners = result
                 .Where(bet => bet.OptionId == winner)
                 .ToArray();

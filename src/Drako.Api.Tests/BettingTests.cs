@@ -55,6 +55,31 @@ namespace Drako.Api.Tests
             chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
         }
 
+        [Fact]
+        public async Task TestBettingRoundWithNoBets()
+        {
+            using var application = await Application.CreateInstanceAsync(_testOutputHelper);
+            using var ownerClient = await application.LoginUser(TestIds.Users.Owner);
+            using var johnClient = await application.LoginUser(TestIds.Users.John);
+            using var maryClient = await application.LoginUser(TestIds.Users.Mary);
+
+            var response = await ownerClient.OpenBetting();
+            
+            var bettingOpenResponse = await response.Content<BettingResource>();
+            response.StatusCode.ShouldBe(HttpStatusCode.Created);
+            bettingOpenResponse.Approve("OpenBetting", ScrubBettingResource);
+
+            response = await ownerClient.CloseBetting(bettingOpenResponse.Id);
+            var closeBetResponse = await response.Content<BettingResource>();
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            closeBetResponse.Approve("CloseBetting", ScrubBettingResource);
+
+            response = await ownerClient.ChooseWinner(bettingOpenResponse.Id, bettingOpenResponse.Options[1].Id);
+            var chooseWinnerResponse = await response.Content<BettingResource>();
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
+        }
+        
         private void ScrubBettingResource(BettingResource resource)
         {
             if (resource.Id > 0)
