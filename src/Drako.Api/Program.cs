@@ -1,3 +1,5 @@
+using System.IO;
+using System.Reflection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +22,7 @@ namespace Drako.Api
                     wb.ConfigureAppConfiguration(cb =>
                     {
                         cb.AddEnvironmentVariables();
-                        cb.AddJsonFile("appSettings.json", true);
+                        cb.AddJsonFile(Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "appSettings.json"), true);
                     });
                 })
                 .ConfigureWebHostDefaults(webBuilder => { webBuilder.UseStartup<Startup>(); });

@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\appSettings.json" Condition="Exists('../appSettings.json')">
+      <Content Include="..\appSettings.json" Condition="Exists('..\appSettings.json')">
         <Link>appSettings.json</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>

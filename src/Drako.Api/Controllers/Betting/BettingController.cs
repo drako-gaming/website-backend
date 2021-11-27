@@ -32,7 +32,7 @@ namespace Drako.Api.Controllers.Betting
             await using var uow = await _uowFactory.CreateAsync();
             if (id == null)
             {
-                var resource = _bettingDataStore.GetLatestBetGameAsync(uow, User.TwitchId());
+                var resource = await _bettingDataStore.GetLatestBetGameAsync(uow, User.TwitchId());
                 return Ok(resource);
             }
             else
