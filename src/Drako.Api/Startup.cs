@@ -44,6 +44,14 @@ namespace Drako.Api
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var dataProtectionPath = Configuration["dataProtectionPath"];
+            if (dataProtectionPath != null)
+            {
+                services.AddDataProtection()
+                    .SetApplicationName("drako-api")
+                    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
+            }
+
             services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.All;
@@ -85,6 +93,7 @@ namespace Drako.Api
                     };
                     options.ExpireTimeSpan = TimeSpan.FromDays(14);
                     options.SlidingExpiration = true;
+                    options.Cookie.Name = "wigwam_pass";
                 })
                 .AddTwitch("Twitch", options =>
                 {

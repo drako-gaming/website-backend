@@ -115,7 +115,6 @@ namespace Drako.Api.Controllers.Betting
 
         [HttpGet]
         [Route("bets")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetBets([FromRoute] long id, [FromQuery] GetBetsQuery query)
         {
             await using var uow = await _uowFactory.CreateAsync();
