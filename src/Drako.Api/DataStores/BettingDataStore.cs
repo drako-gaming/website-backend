@@ -3,22 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
-using Drako.Api.Configuration;
 using Drako.Api.Controllers;
-using Microsoft.Extensions.Options;
-using Npgsql;
 
 namespace Drako.Api.DataStores
 {
     public class BettingDataStore
     {
-        private readonly IOptions<DatabaseOptions> _options;
-
-        public BettingDataStore(IOptions<DatabaseOptions> options)
-        {
-            _options = options;
-        }
-
         public async Task<BettingResource> GetLatestBetGameAsync(UnitOfWork uow, string twitchId)
         {
             const string sql = @"
@@ -130,30 +120,42 @@ namespace Drako.Api.DataStores
         }
 
 
-        public async Task SetWinnerAsync(
+        public async Task<List<(string UserTwitchId, long Awarded)>> SetWinnerAsync(
             UnitOfWork uow,
             long gameId,
-            long winner)
+            long winner,
+            decimal multiplier)
         {
             const string sql = @"
                         UPDATE games cg
                         SET winner = :winner
-                        WHERE id = :gameId
+                        WHERE id = :gameId;
+                        
+                        WITH w AS (
+                            UPDATE wagers
+                            SET awarded = floor(:multiplier * wagers.amount)
+                            WHERE game_id = :gameId
+                            AND wagers.game_option_id = :winner
+                            RETURNING user_id, awarded
+                        )
+                        SELECT user_twitch_id, awarded
+                        FROM w
+                        INNER JOIN users on users.id = w.user_id
                     ";
 
-            var rowsAffected = await uow.Connection.ExecuteAsync(
+            var awarded = await uow.Connection.QueryAsync<(string user_twitch_id, long awarded)>(
                 sql,
                 new
                 {
                     winner,
-                    gameId
+                    gameId,
+                    multiplier
                 }, uow.Transaction
             );
 
-            if (rowsAffected == 0)
-            {
-                throw new Exception();
-            }
+            return awarded
+                .Select(x => (x.user_twitch_id, x.awarded))
+                .ToList();
         }
 
         public async Task RecordBetAsync(UnitOfWork uow, long gameId, string userTwitchId, long optionId, long amount)
@@ -192,51 +194,80 @@ namespace Drako.Api.DataStores
         public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId)
         {
             const string sql = @"
-                SELECT user_twitch_id, amount, game_option_id
+                SELECT user_twitch_id, display_name, amount, awarded, game_option_id
                 FROM wagers w
                 INNER JOIN users u ON u.id = w.user_id
                 WHERE game_id = :gameId
+                ORDER BY amount DESC
             ";
 
-            var result = await uow.Connection.QueryAsync(sql, new { gameId }, uow.Transaction);
+            var result = await uow.Connection.QueryAsync(
+                sql,
+                new
+                {
+                    gameId
+                },
+                uow.Transaction
+            );
 
             return result
                 .Select(x => new BetResource
                 {
                     Amount = x.amount,
                     OptionId = x.game_option_id,
-                    UserTwitchId = x.user_twitch_id
+                    UserTwitchId = x.user_twitch_id,
+                    UserTwitchDisplayName = x.display_name,
+                    Awarded = x.awarded
                 })
                 .ToList();
         }
-
-        public async Task<IList<BetSummaryResource>> GetBetsSummaryAsync(long gameId, bool groupByOption)
+        
+        public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId, int? optionId,
+            int pageSize, int pageNumber)
         {
             const string sqlTemplate = @"
-                SELECT /**select**/
-                FROM wagers w 
-                WHERE game_id = :gameId
-                /**groupby**/
+                SELECT user_twitch_id, display_name, amount, awarded, game_option_id
+                FROM wagers w
+                INNER JOIN users u ON u.id = w.user_id
+                /**where**/
+                ORDER BY amount DESC
+                LIMIT :limit OFFSET :offset
             ";
-            
-            await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);
+
             var builder = new SqlBuilder();
-            builder.Select("MAX(w.id) maximum_wager_id");
-            builder.Select("SUM(w.amount) total");
-            builder.AddParameters(new { gameId });
-            if (groupByOption)
+            if (optionId != null)
             {
-                builder.Select("option");
-                builder.GroupBy("option");
+                builder.Where("game_option_id = :optionId", new { optionId });
             }
 
-            var sql = builder.AddTemplate(sqlTemplate);
-            return connection.Query(sql.RawSql, sql.Parameters)
-                .Select(x => new BetSummaryResource
+            builder.Where("game_id = :gameId", new { gameId });
+            
+            int limit = pageSize == 0 ? 20 : pageSize;
+            int offset = pageNumber == 0 ? 0 : (pageNumber - 1) * limit;
+
+            var sql = builder.AddTemplate(
+                sqlTemplate,
+                new
                 {
-                    Amount = x.total,
-                    MaximumWagerId = x.maximum_wager_id,
-                    OptionId = x.option
+                    limit,
+                    offset
+                }
+            );
+            
+            var result = await uow.Connection.QueryAsync(
+                sql.RawSql,
+                sql.Parameters,
+                uow.Transaction
+            );
+
+            return result
+                .Select(x => new BetResource
+                {
+                    Amount = x.amount,
+                    OptionId = x.game_option_id,
+                    UserTwitchId = x.user_twitch_id,
+                    UserTwitchDisplayName = x.display_name,
+                    Awarded = x.awarded
                 })
                 .ToList();
         }

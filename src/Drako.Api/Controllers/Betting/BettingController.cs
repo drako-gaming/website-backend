@@ -106,17 +106,26 @@ namespace Drako.Api.Controllers.Betting
             var winningOdds = winningOption.OddsImpl;
             decimal multiplier = winningOdds.WinMultiplier(totalBets, winners.Sum(x => x.Amount));
 
-            await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner);
-            foreach (var winningBet in winners)
+            var awards = await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner, multiplier);
+            foreach (var winningBet in awards)
             {
-                var payout = (int)Math.Floor(multiplier * winningBet.Amount);
-                winningBet.Amount = payout;
-                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, payout, "Betting payout");
+                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, winningBet.Awarded, "Betting payout");
             }
         }
 
+        [HttpGet]
+        [Route("bets")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetBets([FromRoute] long id, [FromQuery] GetBetsQuery query)
+        {
+            await using var uow = await _uowFactory.CreateAsync();
+            var result = await _bettingDataStore.GetBetsAsync(uow, id, query.OptionId, query.PageSize, query.PageNum);
+            return Ok(result);
+        }
+        
         [HttpPost]
         [Route("bet")]
+        [Route("bets")]
         public async Task<IActionResult> PlaceBet([FromRoute] long id, [FromBody] BetResource model)
         {
             await using var uow = await _uowFactory.CreateAsync();

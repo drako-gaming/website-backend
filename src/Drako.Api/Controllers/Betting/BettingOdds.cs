@@ -28,16 +28,19 @@ namespace Drako.Api.Controllers
 
         public decimal WinMultiplier(long totalBets, long sum)
         {
+            if (Numerator == -1)
+            {
+                if (sum == 0)
+                {
+                    return 0m;
+                }
+                return Convert.ToDecimal(totalBets) / Convert.ToDecimal(sum);
+            }
+
             if (Denominator == 0)
             {
                 return 0m;
             }
-            
-            if (Numerator == -1)
-            {
-                return Convert.ToDecimal(totalBets) / Convert.ToDecimal(sum);
-            }
-
             return Convert.ToDecimal(Numerator) / Convert.ToDecimal(Denominator);
         }
     }
