@@ -11,11 +11,16 @@ namespace Drako.Api.Configuration
     {
         private readonly IDatabase _redis;
         private readonly IOptions<TwitchOptions> _twitchOptions;
+        private readonly IOptions<RoleOptions> _roleOptions;
 
-        public RoleClaimsTransformation(IDatabase redis, IOptions<TwitchOptions> twitchOptions)
+        public RoleClaimsTransformation(
+            IDatabase redis,
+            IOptions<TwitchOptions> twitchOptions,
+            IOptions<RoleOptions> roleOptions)
         {
             _redis = redis;
             _twitchOptions = twitchOptions;
+            _roleOptions = roleOptions;
         }
         
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
@@ -26,7 +31,9 @@ namespace Drako.Api.Configuration
             }
             var twitchId = principal.TwitchId();
             var isOwner = _twitchOptions.Value.OwnerUserId == twitchId;
-            var isModerator = isOwner || await _redis.SetContainsAsync("moderators", twitchId);
+            var isModerator = isOwner ||
+                              (_roleOptions.Value?.Moderators?.Contains(twitchId) ?? false) ||
+                              await _redis.SetContainsAsync("moderators", twitchId);
 
             if (isModerator)
             {
