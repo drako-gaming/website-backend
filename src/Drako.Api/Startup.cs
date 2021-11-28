@@ -103,7 +103,9 @@ namespace Drako.Api
                     options.CallbackPath = "/signin-TwitchOwner";
                 });
             services.AddTransient<IClaimsTransformation, RoleClaimsTransformation>();
-            
+
+            services.AddOptions<RoleOptions>()
+                .Bind(Configuration.GetSection("roles"));
             services.AddOptions<TwitchAuthenticationOptions>("Twitch")
                 .Bind(Configuration.GetSection("twitch"));
             services.AddOptions<TwitchAuthenticationOptions>("TwitchOwner")
