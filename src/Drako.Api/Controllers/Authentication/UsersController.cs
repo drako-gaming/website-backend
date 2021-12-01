@@ -37,7 +37,7 @@ namespace Drako.Api.Controllers.Authentication
         public async Task<IActionResult> GiveCoins([FromRoute] string userId, [FromQuery] long amount)
         {
             await using var uow = await _uowFactory.CreateAsync();
-            await _userDataStore.AddCurrencyAsync(uow, userId, amount, "Given");
+            await _userDataStore.AddCurrencyAsync(uow, userId, null, null, amount, "Given");
             await uow.CommitAsync();
             return Ok();
         }

@@ -32,7 +32,7 @@ namespace Drako.Api.Jobs
             await using var uow = await _uowFactory.CreateAsync();
             foreach (string userTwitchId in userTwitchIds)
             {
-                await _userDataStore.AddCurrencyAsync(uow, userTwitchId, coinAward, "Automatically added");
+                await _userDataStore.AddCurrencyAsync(uow, userTwitchId, null, null, coinAward, "Automatically added");
             }
 
             await uow.CommitAsync();

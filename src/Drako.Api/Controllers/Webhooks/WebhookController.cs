@@ -115,6 +115,8 @@ namespace Drako.Api.Controllers.Webhooks
                 await _userDataStore.AddCurrencyAsync(
                     uow,
                     userId,
+                    notification.Event.user_login,
+                    notification.Event.user_name,
                     awardValue,
                     $"Reward {notification.Event.reward.id} redeemed.",
                     $"redemption:{eventId}"

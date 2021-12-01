@@ -109,7 +109,7 @@ namespace Drako.Api.Controllers.Betting
             var awards = await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner, multiplier);
             foreach (var winningBet in awards)
             {
-                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, winningBet.Awarded, "Betting payout");
+                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, null, null, winningBet.Awarded, "Betting payout");
             }
         }
 

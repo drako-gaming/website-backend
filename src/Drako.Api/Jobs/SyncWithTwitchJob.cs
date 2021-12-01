@@ -127,6 +127,8 @@ namespace Drako.Api.Jobs
                     await _userDataStore.AddCurrencyAsync(
                         uow,
                         userId,
+                        redemption.user_login,
+                        redemption.user_name,
                         awardValue,
                         $"Reward {rewardId} redeemed.",
                         $"redemption:{eventId}"

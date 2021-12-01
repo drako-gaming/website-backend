@@ -70,14 +70,23 @@ namespace Drako.Api.DataStores
             }, uow.Transaction);
         }
         
-        public async Task AddCurrencyAsync(UnitOfWork uow, string userTwitchId, long amount, string reason, string uniqueId = null)
+        public async Task AddCurrencyAsync(
+            UnitOfWork uow,
+            string userTwitchId,
+            string userTwitchLoginName, 
+            string userTwitchDisplayName,
+            long amount, 
+            string reason, 
+            string uniqueId = null)
         {
             const string sqlTemplate = @"
                 WITH up AS (
                     INSERT INTO users (user_twitch_id, login_name, display_name, balance, last_updated)
-                    SELECT @userTwitchId, 'user', 'user', @amount, @date
+                    SELECT @userTwitchId, COALESCE(@userTwitchLoginName, 'user'), COALESCE(@userTwitchDisplayName, 'user'), @amount, @date
                     ON CONFLICT (user_twitch_id) DO UPDATE
                     SET balance = users.balance + @amount,
+                        login_name = COALESCE(@userTwitchLoginName, users.login_name),
+                        display_name = COALESCE(@userTwitchDisplayName, users.display_name),
                         last_updated = @date
                     /**where**/
                     RETURNING id, balance
@@ -99,6 +108,8 @@ namespace Drako.Api.DataStores
             var sql = builder.AddTemplate(sqlTemplate, new
             {
                 userTwitchId,
+                userTwitchDisplayName,
+                userTwitchLoginName,
                 amount,
                 reason,
                 date = DateTime.UtcNow,
