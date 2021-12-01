@@ -41,5 +41,13 @@ namespace Drako.Api.Controllers.Authentication
             await uow.CommitAsync();
             return Ok();
         }
+
+        [HttpGet("leaderboard")]
+        public async Task<IActionResult> Leaderboard([FromQuery] LeaderboardQuery query)
+        {
+            await using var uow = await _uowFactory.CreateAsync();
+            var users = await _userDataStore.GetLeaderboard(uow, query.PageNum, query.PageSize);
+            return Ok(users);
+        }
     }
 }

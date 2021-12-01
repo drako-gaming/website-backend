@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using Drako.Api.Configuration;
+using Drako.Api.Controllers.Authentication;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -151,6 +153,39 @@ namespace Drako.Api.DataStores
             ).Single();
 
             uow.OnCommit(async hub => await hub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance));
+        }
+
+        public async Task<IList<UserResource>> GetLeaderboard(UnitOfWork uow, int pageNumber, int pageSize)
+        {
+            const string sql = @"
+                SELECT RANK() OVER (ORDER BY balance DESC) rank, display_name, user_twitch_id, balance
+                FROM users
+                ORDER BY balance DESC 
+                LIMIT @limit OFFSET @offset
+            ";
+
+            int limit = pageSize == 0 ? 20 : pageSize;
+            int offset = pageNumber == 0 ? 0 : (pageNumber - 1) * limit;
+
+            var result = await uow.Connection.QueryAsync(
+                sql,
+                new
+                {
+                    limit,
+                    offset
+                },
+                uow.Transaction
+            );
+
+            return result
+                .Select(x => new UserResource
+                {
+                    Rank = x.rank,
+                    Balance = x.balance,
+                    DisplayName = x.display_name,
+                    TwitchId = x.user_twitch_id
+                })
+                .ToList();
         }
     }
 }
