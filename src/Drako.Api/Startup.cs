@@ -169,6 +169,10 @@ namespace Drako.Api
                         .WithCronSchedule("0 1 * ? * * *")
                         .WithIdentity("Sync with Twitch")
                 );
+                q.ScheduleJob<SyncWithTwitchJob>(trigger =>
+                    trigger.StartNow()
+                        .WithSimpleSchedule(b => b.Build())
+                );
             });
 
             services.AddTransient<AddCurrencyJob>();
