@@ -35,7 +35,9 @@ namespace Drako.Api.Tests
                         {
                             id = TestIds.Rewards.Used
                         },
-                        user_id = TestIds.Users.John
+                        user_id = TestIds.Users.John,
+                        user_login = "john",
+                        user_name = "John"
                     }
                 }
             );
@@ -73,7 +75,9 @@ namespace Drako.Api.Tests
                         {
                             id = TestIds.Rewards.Unused
                         },
-                        user_id = TestIds.Users.John
+                        user_id = TestIds.Users.John,
+                        user_login = "john",
+                        user_name = "John"
                     }
                 }
             );

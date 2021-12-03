@@ -136,6 +136,10 @@ namespace Drako.Api.Controllers.Authentication
         {
             var twitchId = User.TwitchId();
             var user = await _userDataStore.GetUserAsync(twitchId);
+            var roles = User.Claims
+                .Where(x => x.Type == ClaimTypes.Role)
+                .Select(x => x.Value)
+                .ToArray();
 
             return Ok(
                 new
@@ -144,7 +148,8 @@ namespace Drako.Api.Controllers.Authentication
                     DisplayName = user.display_name,
                     LoginName = user.login_name,
                     Balance = user.balance,
-                    LastTransactonId = user.last_transaction_id ?? 0
+                    LastTransactonId = user.last_transaction_id ?? 0,
+                    Roles = roles
                 }
             );
         }
