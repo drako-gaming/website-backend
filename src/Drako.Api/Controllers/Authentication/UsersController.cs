@@ -43,6 +43,7 @@ namespace Drako.Api.Controllers.Authentication
         }
 
         [HttpGet("leaderboard")]
+        [AllowAnonymous]
         public async Task<IActionResult> Leaderboard([FromQuery] LeaderboardQuery query)
         {
             await using var uow = await _uowFactory.CreateAsync();

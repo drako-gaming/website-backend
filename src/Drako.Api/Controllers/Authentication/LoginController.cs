@@ -69,7 +69,6 @@ namespace Drako.Api.Controllers.Authentication
         }
         
         [HttpGet("logout")]
-        [Authorize]
         public IActionResult Logout([FromQuery] string redirectUri)
         {
             if (!Url.IsLocalUrl(redirectUri))
