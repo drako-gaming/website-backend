@@ -67,15 +67,15 @@ namespace Drako.Api.Jobs
             var moderators = await _twitchApiClient.GetModerators(accessToken);
             foreach (var moderator in moderators)
             {
-                await _redis.SetAddAsync("moderators_new", moderator);
+                await _redis.SetAddAsync(RedisKeys.ModeratorsCopy, moderator);
             }
 
             var tran = _redis.CreateTransaction();
 #pragma warning disable 4014
             // Make sure that the moderators key exists
-            tran.SetAddAsync("moderators", "0");
-            tran.KeyDeleteAsync("moderators");
-            tran.KeyRenameAsync("moderators_new", "moderators");
+            tran.SetAddAsync(RedisKeys.Moderators, "0");
+            tran.KeyDeleteAsync(RedisKeys.Moderators);
+            tran.KeyRenameAsync(RedisKeys.ModeratorsCopy, RedisKeys.Moderators);
 #pragma warning restore 4014
             await tran.ExecuteAsync();
         }
@@ -85,15 +85,15 @@ namespace Drako.Api.Jobs
             var subscribers = await _twitchApiClient.GetSubscribers(accessToken);
             foreach (var moderator in subscribers)
             {
-                await _redis.SetAddAsync("subscribers_new", moderator);
+                await _redis.SetAddAsync(RedisKeys.SubscribersCopy, moderator);
             }
 
             var tran = _redis.CreateTransaction();
 #pragma warning disable 4014
             // Make sure that the moderators key exists
-            tran.SetAddAsync("subscribers", "0");
-            tran.KeyDeleteAsync("subscribers");
-            tran.KeyRenameAsync("subscribers_new", "subscribers");
+            tran.SetAddAsync(RedisKeys.Subscribers, "0");
+            tran.KeyDeleteAsync(RedisKeys.Subscribers);
+            tran.KeyRenameAsync(RedisKeys.SubscribersCopy, RedisKeys.Subscribers);
 #pragma warning restore 4014
             await tran.ExecuteAsync();
         }
@@ -103,11 +103,11 @@ namespace Drako.Api.Jobs
             var isStreamOnline = await _twitchApiClient.IsStreamOnline(accessToken);
             if (isStreamOnline)
             {
-                await _redis.StringSetAsync("online", 1);
+                await _redis.StringSetAsync(RedisKeys.Online, 1);
             }
             else
             {
-                await _redis.StringSetAsync("online", 0);
+                await _redis.StringSetAsync(RedisKeys.Online, 0);
             }
         }
 

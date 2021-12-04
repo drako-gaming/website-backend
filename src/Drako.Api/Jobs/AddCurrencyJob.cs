@@ -20,18 +20,36 @@ namespace Drako.Api.Jobs
         
         public async Task Execute(IJobExecutionContext context)
         {
-            const int coinAward = 5;
+            var isOnline = await _redis.StringGetAsync(RedisKeys.Online) == "1";
             
-            await _redis.KeyDeleteAsync("presenceCopy");
-            if (!await _redis.KeyExistsAsync("presence")) return;
+            await _redis.KeyDeleteAsync(RedisKeys.PresenceCopy);
+            if (!await _redis.KeyExistsAsync(RedisKeys.Presence)) return;
             
-            await _redis.KeyRenameAsync("presence", "presenceCopy");
+            await _redis.KeyRenameAsync(RedisKeys.Presence, RedisKeys.PresenceCopy);
 
-            var userTwitchIds = await _redis.SetMembersAsync("presenceCopy");
+            var userTwitchIds = await _redis.SetMembersAsync(RedisKeys.PresenceCopy);
 
             await using var uow = await _uowFactory.CreateAsync();
             foreach (string userTwitchId in userTwitchIds)
             {
+                var isSubscriber = await _redis.SetContainsAsync(RedisKeys.Subscribers, userTwitchId);
+                long coinAward = 0L;
+
+                switch (isOnline, isSubscriber)
+                {
+                    case (false, false):
+                        coinAward = 3;
+                        break;
+                    
+                    case (true, false):
+                    case (false, true):
+                        coinAward = 5;
+                        break;
+                    
+                    case (true, true):
+                        coinAward = 7;
+                        break;
+                }
                 await _userDataStore.AddCurrencyAsync(uow, userTwitchId, null, null, coinAward, "Automatically added");
             }
 

@@ -44,7 +44,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("channel.subscribe")]
         public async Task<IActionResult> NewSubscriber([FromBody] Notification<UserEvent> notification)
         {
-            await _redis.SetAddAsync("subscribers", notification.Event.user_id);
+            await _redis.SetAddAsync(RedisKeys.Subscribers, notification.Event.user_id);
             return Ok();
         }
 
@@ -52,7 +52,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("channel.subscription.end")]
         public async Task<IActionResult> SubscriberEnd([FromBody] Notification<UserEvent> notification)
         {
-            await _redis.SetRemoveAsync("subscribers", notification.Event.user_id);
+            await _redis.SetRemoveAsync(RedisKeys.Subscribers, notification.Event.user_id);
             return Ok();
         }
 
@@ -60,7 +60,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("channel.moderator.add")]
         public async Task<IActionResult> NewModerator([FromBody] Notification<UserEvent> notification)
         {
-            await _redis.SetAddAsync("moderators", notification.Event.user_id);
+            await _redis.SetAddAsync(RedisKeys.Moderators, notification.Event.user_id);
             return Ok();
         }
         
@@ -68,7 +68,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("channel.moderator.remove")]
         public async Task<IActionResult> RemoveModerator([FromBody] Notification<UserEvent> notification)
         {
-            await _redis.SetRemoveAsync("moderators", notification.Event.user_id);
+            await _redis.SetRemoveAsync(RedisKeys.Moderators, notification.Event.user_id);
             return Ok();
         }
         
@@ -76,7 +76,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("stream.online")]
         public async Task<IActionResult> StreamOnline([FromBody] Notification<object> notification)
         {
-            await _redis.StringSetAsync("online", 1);
+            await _redis.StringSetAsync(RedisKeys.Online, 1);
             return Ok();
         }
         
@@ -84,7 +84,7 @@ namespace Drako.Api.Controllers.Webhooks
         [TwitchWebhook("stream.offline")]
         public async Task<IActionResult> StreamOffline([FromBody] Notification<object> notification)
         {
-            await _redis.StringSetAsync("online", 0);
+            await _redis.StringSetAsync(RedisKeys.Online, 0);
             return Ok();
         }
 
