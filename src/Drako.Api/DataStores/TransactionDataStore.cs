@@ -44,6 +44,11 @@ namespace Drako.Api.DataStores
                 builder = builder.Where("unique_id = @uniqueId", new { parameters.UniqueId });
             }
 
+            if (parameters.GroupingId != null)
+            {
+                builder = builder.Where("grouping_id = @groupingId", new { parameters.GroupingId });
+            }
+
             var sql = builder.AddTemplate(sqlTemplate);
 
             await using var connection = new NpgsqlConnection(_options.Value.ConnectionString);

@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Drako.Api.Controllers;
+using Drako.Api.Controllers.Transactions;
 using Drako.Api.Tests.Support;
 using Shouldly;
 using Xunit;
@@ -53,6 +56,10 @@ namespace Drako.Api.Tests
             var chooseWinnerResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
+
+            var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
+            var transactions = await transactionsResponse.Content<List<Transaction>>();
+            transactions.Approve("Transactions", ScrubTransactions);
         }
 
         [Fact]
@@ -86,6 +93,10 @@ namespace Drako.Api.Tests
             var closeBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             closeBetResponse.Approve("CancelBetting", ScrubBettingResource);
+
+            var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
+            var transactions = await transactionsResponse.Content<List<Transaction>>();
+            transactions.Approve("Transactions", ScrubTransactions);
         }
 
         [Fact]
@@ -111,6 +122,10 @@ namespace Drako.Api.Tests
             var chooseWinnerResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
+
+            var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
+            var transactions = await transactionsResponse.Content<List<Transaction>>();
+            transactions.Approve("Transactions", ScrubTransactions);
         }
         
         private void ScrubBettingResource(BettingResource resource)
@@ -134,6 +149,16 @@ namespace Drako.Api.Tests
                         bettingOption.Id = -1;
                     }
                 }
+            }
+        }
+
+        private void ScrubTransactions(IEnumerable<Transaction> transactions)
+        {
+            foreach (var transaction in transactions)
+            {
+                transaction.Id = -1;
+                transaction.Date = DateTime.MinValue;
+                transaction.Balance = 0;
             }
         }
     }

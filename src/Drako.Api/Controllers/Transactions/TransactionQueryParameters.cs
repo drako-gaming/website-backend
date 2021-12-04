@@ -9,5 +9,8 @@ namespace Drako.Api.Controllers.Transactions
         
         [FromQuery]
         public string UniqueId { get; set; }
+        
+        [FromQuery]
+        public string GroupingId { get; set; }
     }
 }

@@ -1,5 +1,4 @@
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authorization;
@@ -83,6 +82,10 @@ namespace Drako.Api.Controllers.Betting
                     await Winner(uow, game, model.WinningOption.Value);
                     break;
                 
+                case (BettingStatus.Done, BettingStatus.Closed):
+                    await Reverse(uow, game);
+                    break;
+                
                 default:
                     return Conflict(game);
             }
@@ -106,9 +109,31 @@ namespace Drako.Api.Controllers.Betting
                     null,
                     null,
                     bet.Amount,
-                    "Bet refunded"
+                    "Bet refunded",
+                    groupingId: $"Bet-{game.Id}"
                 );
             }
+        }
+
+        private async Task Reverse(UnitOfWork uow, BettingResource game)
+        {
+            await _bettingDataStore.SetBettingStatusAsync(uow, game.Id, BettingStatus.Closed);
+            var bets = await _bettingDataStore.GetBetsAsync(uow, game.Id);
+
+            foreach (var bet in bets)
+            {
+                await _userDataStore.AddCurrencyAsync(
+                    uow,
+                    bet.UserTwitchId,
+                    null,
+                    null,
+                    -bet.Awarded,
+                    "Betting payout reversed",
+                    groupingId: $"Bet-{game.Id}"
+                );
+            }
+
+            await _bettingDataStore.ResetWinnerAsync(uow, game.Id);
         }
         
         private async Task Winner(UnitOfWork uow, BettingResource game, long winner)
@@ -130,7 +155,15 @@ namespace Drako.Api.Controllers.Betting
             var awards = await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner, multiplier);
             foreach (var winningBet in awards)
             {
-                await _userDataStore.AddCurrencyAsync(uow, winningBet.UserTwitchId, null, null, winningBet.Awarded, "Betting payout");
+                await _userDataStore.AddCurrencyAsync(
+                    uow,
+                    winningBet.UserTwitchId,
+                    null,
+                    null,
+                    winningBet.Awarded,
+                    "Betting payout",
+                    groupingId: $"Bet-{game.Id}"
+                );
             }
         }
 
@@ -139,7 +172,7 @@ namespace Drako.Api.Controllers.Betting
         public async Task<IActionResult> GetBets([FromRoute] long id, [FromQuery] GetBetsQuery query)
         {
             await using var uow = await _uowFactory.CreateAsync();
-            var result = await _bettingDataStore.GetBetsAsync(uow, id, query.OptionId, query.PageSize, query.PageNum);
+            var result = await _bettingDataStore.GetBetsAsync(uow, id, query);
             return Ok(result);
         }
         
@@ -189,7 +222,15 @@ namespace Drako.Api.Controllers.Betting
             }
 
             await _bettingDataStore.RecordBetAsync(uow, id, User.TwitchId(), model.OptionId, model.Amount);
-            await _userDataStore.RemoveCurrencyAsync(uow, User.TwitchId(), model.Amount, "Bet placed");
+            await _userDataStore.AddCurrencyAsync(
+                uow,
+                User.TwitchId(),
+                null,
+                null,
+                -model.Amount,
+                "Bet placed",
+                groupingId: $"Bet-{game.Id}"
+            );
             game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
             uow.OnCommit(async hub => await hub.Clients.All.BetStatusChanged(game));
             await uow.CommitAsync();

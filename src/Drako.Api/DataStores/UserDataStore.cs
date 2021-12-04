@@ -77,7 +77,8 @@ namespace Drako.Api.DataStores
             string userTwitchDisplayName,
             long amount, 
             string reason, 
-            string uniqueId = null)
+            string uniqueId = null,
+            string groupingId = null)
         {
             const string sqlTemplate = @"
                 WITH up AS (
@@ -91,8 +92,8 @@ namespace Drako.Api.DataStores
                     /**where**/
                     RETURNING id, balance
                 ), i AS (
-                    INSERT INTO transactions (user_id, date, amount, balance, reason, unique_id)
-                    SELECT up.id, @date, @amount, up.balance, @reason, @uniqueId
+                    INSERT INTO transactions (user_id, date, amount, balance, reason, unique_id, grouping_id)
+                    SELECT up.id, @date, @amount, up.balance, @reason, @uniqueId, @groupingId
                     FROM up
                     RETURNING id, balance
                 )
@@ -113,7 +114,8 @@ namespace Drako.Api.DataStores
                 amount,
                 reason,
                 date = DateTime.UtcNow,
-                uniqueId
+                uniqueId,
+                groupingId
             });
             var result = (
                 await uow.Connection.QueryAsync(
@@ -129,41 +131,6 @@ namespace Drako.Api.DataStores
                     await hub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance)
                 );
             }
-        }
-
-        public async Task RemoveCurrencyAsync(UnitOfWork uow, string userTwitchId, long amount, string reason)
-        {
-            const string sql = @"
-                WITH up AS (
-                    UPDATE users 
-                    SET balance = balance - @amount,
-                        last_updated = @date
-                    WHERE user_twitch_id = @userTwitchId
-                    RETURNING id, balance
-                ), i AS (
-                    INSERT INTO transactions (user_id, date, amount, balance, reason)
-                    SELECT up.id, @date, -@amount, up.balance, @reason
-                    FROM up
-                    RETURNING id, balance
-                )
-                SELECT id, balance FROM i;
-            ";
-
-            var result = (
-                await uow.Connection.QueryAsync(
-                    sql,
-                    new
-                    {
-                        userTwitchId,
-                        amount,
-                        reason,
-                        date = DateTime.UtcNow
-                    },
-                    uow.Transaction
-                )
-            ).Single();
-
-            uow.OnCommit(async hub => await hub.Clients.User(userTwitchId).CurrencyUpdated(result.id, result.balance));
         }
 
         public async Task<IList<UserResource>> GetLeaderboard(UnitOfWork uow, int pageNumber, int pageSize)

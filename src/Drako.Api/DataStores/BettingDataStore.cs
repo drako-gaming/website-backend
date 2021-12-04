@@ -119,6 +119,20 @@ namespace Drako.Api.DataStores
             }, uow.Transaction) > 0;
         }
 
+        public async Task ResetWinnerAsync(UnitOfWork uow, long gameId)
+        {
+            const string sql = @"
+                UPDATE games cg
+                SET winner = NULL
+                WHERE id = :gameId;
+
+                UPDATE wagers
+                SET awarded = 0
+                WHERE game_id = :gameId;
+            ";
+
+            await uow.Connection.ExecuteAsync(sql, new { gameId }, uow.Transaction);
+        }
 
         public async Task<List<(string UserTwitchId, long Awarded)>> SetWinnerAsync(
             UnitOfWork uow,
@@ -222,8 +236,7 @@ namespace Drako.Api.DataStores
                 .ToList();
         }
         
-        public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId, int? optionId,
-            int pageSize, int pageNumber)
+        public async Task<IList<BetResource>> GetBetsAsync(UnitOfWork uow, long gameId, GetBetsQuery query)
         {
             const string sqlTemplate = @"
                 SELECT user_twitch_id, display_name, amount, awarded, game_option_id
@@ -235,15 +248,20 @@ namespace Drako.Api.DataStores
             ";
 
             var builder = new SqlBuilder();
-            if (optionId != null)
+            if (query.OptionId != null)
             {
-                builder.Where("game_option_id = :optionId", new { optionId });
+                builder.Where("game_option_id = :optionId", new { query.OptionId });
+            }
+
+            if (query.UserId != null)
+            {
+                builder.Where("user_twitch_id == :userId", new { query.UserId });
             }
 
             builder.Where("game_id = :gameId", new { gameId });
             
-            int limit = pageSize == 0 ? 20 : pageSize;
-            int offset = pageNumber == 0 ? 0 : (pageNumber - 1) * limit;
+            int limit = query.PageSize == 0 ? 20 : query.PageSize;
+            int offset = query.PageNum == 0 ? 0 : (query.PageNum - 1) * limit;
 
             var sql = builder.AddTemplate(
                 sqlTemplate,

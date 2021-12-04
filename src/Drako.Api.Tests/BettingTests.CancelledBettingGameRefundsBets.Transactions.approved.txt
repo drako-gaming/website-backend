@@ -1,0 +1,38 @@
+﻿[
+  {
+    "Id": -1,
+    "UserId": "123",
+    "Date": "0001-01-01T00:00:00",
+    "Amount": -100,
+    "Balance": 0,
+    "Reason": "Bet placed",
+    "UniqueId": null
+  },
+  {
+    "Id": -1,
+    "UserId": "124",
+    "Date": "0001-01-01T00:00:00",
+    "Amount": -200,
+    "Balance": 0,
+    "Reason": "Bet placed",
+    "UniqueId": null
+  },
+  {
+    "Id": -1,
+    "UserId": "124",
+    "Date": "0001-01-01T00:00:00",
+    "Amount": 200,
+    "Balance": 0,
+    "Reason": "Bet refunded",
+    "UniqueId": null
+  },
+  {
+    "Id": -1,
+    "UserId": "123",
+    "Date": "0001-01-01T00:00:00",
+    "Amount": 100,
+    "Balance": 0,
+    "Reason": "Bet refunded",
+    "UniqueId": null
+  }
+]
