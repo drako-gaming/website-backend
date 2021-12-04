@@ -1,0 +1,23 @@
+﻿{
+  "Id": -1,
+  "Objective": "This is a test bet.",
+  "MaximumBet": null,
+  "Options": [
+    {
+      "Description": "She will live",
+      "Id": -1,
+      "Odds": null,
+      "Total": 0
+    },
+    {
+      "Description": "She will die",
+      "Id": -1,
+      "Odds": null,
+      "Total": 0
+    }
+  ],
+  "Status": "Open",
+  "WinningOption": null,
+  "Total": 100,
+  "AlreadyBet": true
+}

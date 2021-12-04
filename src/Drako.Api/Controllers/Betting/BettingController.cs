@@ -1,5 +1,5 @@
-using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authorization;
@@ -67,9 +67,12 @@ namespace Drako.Api.Controllers.Betting
             switch (game.Status, model.Status)
             {
                 case (BettingStatus.Open, BettingStatus.Closed):
+                    await _bettingDataStore.SetBettingStatusAsync(uow, id, BettingStatus.Closed);
+                    break;
+                
                 case (BettingStatus.Open, BettingStatus.Canceled):
                 case (BettingStatus.Closed, BettingStatus.Canceled):
-                    await _bettingDataStore.SetBettingStatusAsync(uow, id, model.Status);
+                    await Cancel(uow, game);
                     break;
                 
                 case (BettingStatus.Closed, BettingStatus.Done):
@@ -90,6 +93,24 @@ namespace Drako.Api.Controllers.Betting
             return Ok(game);
         }
 
+        private async Task Cancel(UnitOfWork uow, BettingResource game)
+        {
+            await _bettingDataStore.SetBettingStatusAsync(uow, game.Id, BettingStatus.Canceled);
+            var result = await _bettingDataStore.GetBetsAsync(uow, game.Id);
+            if (result == null) return;
+            foreach (var bet in result)
+            {
+                await _userDataStore.AddCurrencyAsync(
+                    uow,
+                    bet.UserTwitchId,
+                    null,
+                    null,
+                    bet.Amount,
+                    "Bet refunded"
+                );
+            }
+        }
+        
         private async Task Winner(UnitOfWork uow, BettingResource game, long winner)
         {
             await _bettingDataStore.SetBettingStatusAsync(uow, game.Id, BettingStatus.Done);

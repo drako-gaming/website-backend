@@ -144,6 +144,20 @@ namespace Drako.Api.Tests.Support
             return response;
         }
 
+        public static async Task<HttpResponseMessage> CancelBetting(this HttpClient client, long gameId)
+        {
+            var response = await client.PatchAsync(
+                $"/betting/{U(gameId)}",
+                Json(
+                    new BettingPatchResource
+                    {
+                        Status = BettingStatus.Canceled
+                    }
+                )
+            );
+            return response;
+        }
+        
         public static async Task<HttpResponseMessage> ChooseWinner(
             this HttpClient client,
             long gameId,
