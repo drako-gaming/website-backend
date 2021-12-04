@@ -255,7 +255,7 @@ namespace Drako.Api.DataStores
 
             if (query.UserId != null)
             {
-                builder.Where("user_twitch_id == :userId", new { query.UserId });
+                builder.Where("user_twitch_id = :userId", new { query.UserId });
             }
 
             builder.Where("game_id = :gameId", new { gameId });
