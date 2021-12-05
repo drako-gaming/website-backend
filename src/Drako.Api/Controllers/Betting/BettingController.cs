@@ -11,15 +11,18 @@ namespace Drako.Api.Controllers.Betting
     [Route("betting/{id?}")]
     public class BettingController:Controller
     {
+        private readonly IAuthorizationService _authorizationService;
         private readonly UnitOfWorkFactory _uowFactory;
         private readonly BettingDataStore _bettingDataStore;
         private readonly UserDataStore _userDataStore;
 
         public BettingController(
+            IAuthorizationService authorizationService,
             UnitOfWorkFactory uowFactory,
             BettingDataStore bettingDataStore,
             UserDataStore userDataStore)
         {
+            _authorizationService = authorizationService;
             _uowFactory = uowFactory;
             _bettingDataStore = bettingDataStore;
             _userDataStore = userDataStore;
@@ -171,9 +174,18 @@ namespace Drako.Api.Controllers.Betting
         [Route("bets")]
         public async Task<IActionResult> GetBets([FromRoute] long id, [FromQuery] GetBetsQuery query)
         {
-            await using var uow = await _uowFactory.CreateAsync();
-            var result = await _bettingDataStore.GetBetsAsync(uow, id, query);
-            return Ok(result);
+            var isModeratorResult = await _authorizationService.AuthorizeAsync(User,
+                new AuthorizationPolicyBuilder().RequireRole("moderator").Build());
+            bool canProceed = isModeratorResult.Succeeded || User.TwitchId() == query.UserId;
+
+            if (canProceed)
+            {
+                await using var uow = await _uowFactory.CreateAsync();
+                var result = await _bettingDataStore.GetBetsAsync(uow, id, query);
+                return Ok(result);
+            }
+
+            return Unauthorized();
         }
         
         [HttpPost]

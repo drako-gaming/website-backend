@@ -97,7 +97,7 @@ namespace Drako.Api
                 })
                 .AddTwitch("Twitch", options =>
                 {
-                    options.ForceVerify = true;
+                    options.ForceVerify = false;
                     options.SaveTokens = false;
                     options.Scope.Clear();
                     options.CorrelationCookie.SameSite = SameSiteMode.Unspecified;

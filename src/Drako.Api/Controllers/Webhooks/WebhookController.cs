@@ -122,14 +122,14 @@ namespace Drako.Api.Controllers.Webhooks
                     $"redemption:{eventId}"
                 );
 
+                await uow.CommitAsync();
+                
                 try
                 {
                     await _twitchApi.MarkRedemptionFulfilled(tokens.AccessToken, eventId, notification.Event.reward.id);
-                    await uow.CommitAsync();
                 }
                 catch (ApiException e)
                 {
-
                     if (e.StatusCode == HttpStatusCode.Unauthorized)
                     {
                         var newTokens = await _twitchApi.RefreshToken(tokens.RefreshToken);
