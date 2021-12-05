@@ -42,12 +42,15 @@ namespace Drako.Api.Jobs
                         break;
                     
                     case (true, false):
+                        coinAward = 7;
+                        break;
+                    
                     case (false, true):
                         coinAward = 5;
                         break;
                     
                     case (true, true):
-                        coinAward = 7;
+                        coinAward = 10;
                         break;
                 }
                 await _userDataStore.AddCurrencyAsync(uow, userTwitchId, null, null, coinAward, "Automatically added");
