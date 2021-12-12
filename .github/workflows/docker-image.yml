@@ -15,15 +15,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    
+
     - name: Login to GHCR
       uses: docker/login-action@v1
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Extract metadata (tags, labels) for Docker
+
+    - name: Extract metadata (tags, labels) for Docker backend image
       id: meta
       uses: docker/metadata-action@v3
       with:
@@ -31,7 +31,23 @@ jobs:
         flavor: |
           latest=true
 
-    - name: Build and push Docker image
+    - name: Extract metadata (tags, labels) for Docker db image
+      id: meta-db
+      uses: docker/metadata-action@v3
+      with:
+        images: ghcr.io/${{ github.repository }}-database
+        flavor: |
+          latest=true
+
+    - name: Build database migration image
+      uses: docker/build-push-action@v2
+      with:
+        context: src/Drako.Api.Database
+        push: true
+        tags: ${{ steps.meta-db.outputs.tags }}
+        labels: ${{ steps.meta-db.outputs.labels }}
+
+    - name: Build backend image
       uses: docker/build-push-action@v2
       with:
         context: src/Drako.Api

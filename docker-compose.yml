@@ -16,15 +16,5 @@ services:
         ports:
             - 6379:6379
 
-    migrations:
-        profiles:
-            - manual
-        depends_on:
-            - postgres
-        image: migrate/migrate
-        command: -path=/migrations -verbose -database postgres://postgres:$POSTGRES_PASSWORD@postgres:5432/drakoapi?sslmode=disable up
-        volumes:
-            - ./docker/postgres/migrations:/migrations
-
 volumes:
     postgres_data: {}

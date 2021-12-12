@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Drako.Api", "Drako.Api\Drak
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Drako.Api.Tests", "Drako.Api.Tests\Drako.Api.Tests.csproj", "{BDB63182-3EAE-4BC1-9037-870E5D687DD7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Drako.Api.Database", "Drako.Api.Database\Drako.Api.Database.csproj", "{8C860A01-300B-4EE6-A167-CFAEB52B6E31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,17 @@ Global
 		{BDB63182-3EAE-4BC1-9037-870E5D687DD7}.Release|x64.Build.0 = Release|Any CPU
 		{BDB63182-3EAE-4BC1-9037-870E5D687DD7}.Release|x86.ActiveCfg = Release|Any CPU
 		{BDB63182-3EAE-4BC1-9037-870E5D687DD7}.Release|x86.Build.0 = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|x64.Build.0 = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Debug|x86.Build.0 = Debug|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|x64.ActiveCfg = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|x64.Build.0 = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|x86.ActiveCfg = Release|Any CPU
+		{8C860A01-300B-4EE6-A167-CFAEB52B6E31}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
