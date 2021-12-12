@@ -6,7 +6,6 @@ COPY *.csproj ./
 RUN dotnet restore
 
 COPY * ./
-RUN rm appSettings.tmpl.json
 RUN dotnet publish -c Release -o out
 
 FROM mcr.microsoft.com/dotnet/aspnet:5.0
