@@ -17,7 +17,7 @@ namespace Drako.Api.Database
             var connectionString = configuration["database:connectionString"];
 
             var upgradeEngine = DeployChanges.To.PostgresqlDatabase(connectionString)
-                .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
+                .WithScriptsEmbeddedInAssembly(typeof(Program).Assembly)
                 .LogToConsole()
                 .Build();
 
