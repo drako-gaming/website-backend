@@ -18,6 +18,7 @@ namespace Drako.Api.Database
 
             var upgradeEngine = DeployChanges.To.PostgresqlDatabase(connectionString)
                 .WithScriptsEmbeddedInAssembly(typeof(Program).Assembly)
+                .JournalToPostgresqlTable("public", "journal")
                 .LogToConsole()
                 .Build();
 
