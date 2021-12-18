@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:6.0-alpine AS build
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN dotnet restore
 COPY * ./
 RUN dotnet publish -c Release -o out
 
-FROM mcr.microsoft.com/dotnet/aspnet:5.0
+FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine
 
 ENV dataProtectionPath=/dpstore
 RUN mkdir /dpstore
