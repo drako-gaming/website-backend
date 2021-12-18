@@ -17,7 +17,7 @@ namespace Drako.Api.DataStores
                 LIMIT 1
             ";
 
-            var result = await uow.Connection.ExecuteScalarAsync<long?>(sql);
+            var result = await uow.ExecuteScalarAsync<long?>(sql);
             if (result.HasValue)
             {
                 return await GetBetGameAsync(uow, result.Value, twitchId);
@@ -53,7 +53,7 @@ namespace Drako.Api.DataStores
                 GROUP BY g.id;
             ";
 
-            var result = await uow.Connection.QueryMultipleAsync(sql, new { gameId }, uow.Transaction);
+            var result = await uow.QueryMultipleAsync(sql, new { gameId });
 
             var options = await result.ReadAsync();
             var resource = await result.ReadFirstAsync();
@@ -88,14 +88,13 @@ namespace Drako.Api.DataStores
                 WHERE g.id = :gameId;
             ";
 
-            var rowsAffected = await uow.Connection.ExecuteAsync(
+            var rowsAffected = await uow.ExecuteAsync(
                 sql,
                 new
                 {
                     status,
                     gameId
-                },
-                uow.Transaction
+                }
             );
 
             if (rowsAffected == 0)
@@ -112,11 +111,11 @@ namespace Drako.Api.DataStores
                 WHERE u.user_twitch_id = :userTwitchId AND cw.game_id = :gameId;
             ";
 
-            return await uow.Connection.ExecuteScalarAsync<int>(sql, new
+            return await uow.ExecuteScalarAsync<int>(sql, new
             {
                 userTwitchId,
                 gameId
-            }, uow.Transaction) > 0;
+            }) > 0;
         }
 
         public async Task ResetWinnerAsync(UnitOfWork uow, long gameId)
@@ -131,7 +130,7 @@ namespace Drako.Api.DataStores
                 WHERE game_id = :gameId;
             ";
 
-            await uow.Connection.ExecuteAsync(sql, new { gameId }, uow.Transaction);
+            await uow.ExecuteAsync(sql, new { gameId });
         }
 
         public async Task<List<(string UserTwitchId, long Awarded)>> SetWinnerAsync(
@@ -157,14 +156,14 @@ namespace Drako.Api.DataStores
                         INNER JOIN users on users.id = w.user_id
                     ";
 
-            var awarded = await uow.Connection.QueryAsync<(string user_twitch_id, long awarded)>(
+            var awarded = await uow.QueryAsync<(string user_twitch_id, long awarded)>(
                 sql,
                 new
                 {
                     winner,
                     gameId,
                     multiplier
-                }, uow.Transaction
+                }
             );
 
             return awarded
@@ -187,7 +186,7 @@ namespace Drako.Api.DataStores
                 WHERE game_id = :gameId;
             ";
 
-            var rowsAffected = await uow.Connection.ExecuteAsync(
+            var rowsAffected = await uow.ExecuteAsync(
                 sql,
                 new
                 {
@@ -195,8 +194,7 @@ namespace Drako.Api.DataStores
                     amount,
                     optionId,
                     gameId
-                },
-                uow.Transaction
+                }
             );
 
             if (rowsAffected == 0)
@@ -215,13 +213,12 @@ namespace Drako.Api.DataStores
                 ORDER BY amount DESC
             ";
 
-            var result = await uow.Connection.QueryAsync(
+            var result = await uow.QueryAsync(
                 sql,
                 new
                 {
                     gameId
-                },
-                uow.Transaction
+                }
             );
 
             return result
@@ -272,10 +269,9 @@ namespace Drako.Api.DataStores
                 }
             );
             
-            var result = await uow.Connection.QueryAsync(
+            var result = await uow.QueryAsync(
                 sql.RawSql,
-                sql.Parameters,
-                uow.Transaction
+                sql.Parameters
             );
 
             return result
@@ -303,27 +299,25 @@ namespace Drako.Api.DataStores
                 VALUES (:gameId, :odds, :description);
             ";
             
-            var gameId = await uow.Connection.ExecuteScalarAsync<long>(
+            var gameId = await uow.ExecuteScalarAsync<long>(
                 sql,
                 new
                 {
                     objective,
                     maximumBet,
-                },
-                uow.Transaction
+                }
             );
 
             foreach (var option in options)
             {
-                await uow.Connection.ExecuteAsync(
+                await uow.ExecuteAsync(
                     optionsSql,
                     new
                     {
                         gameId,
                         odds = option.Odds,
                         description = option.Description
-                    },
-                    uow.Transaction
+                    }
                 );
             }
 

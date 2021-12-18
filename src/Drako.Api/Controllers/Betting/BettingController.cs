@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace Drako.Api.Controllers.Betting
 {
     [Authorize]
     [ApiController]
-    [Route("betting/{id?}")]
+    [Route("betting/{id:long?}")]
     public class BettingController:Controller
     {
         private readonly IAuthorizationService _authorizationService;
@@ -45,7 +46,7 @@ namespace Drako.Api.Controllers.Betting
         }
 
         [HttpPost]
-        [Authorize(Roles = "moderator")]
+        [Authorize(Roles = Roles.Moderator)]
         public async Task<IActionResult> Open([FromBody] BettingResource model)
         {
             await using var uow = await _uowFactory.CreateAsync();
@@ -61,7 +62,7 @@ namespace Drako.Api.Controllers.Betting
         }
 
         [HttpPatch]
-        [Authorize(Roles = "moderator")]
+        [Authorize(Roles = Roles.Moderator)]
         public async Task<IActionResult> HttpPatchAttribute([FromRoute] long id, [FromBody] BettingPatchResource model)
         {
             await using var uow = await _uowFactory.CreateAsync();
@@ -189,8 +190,8 @@ namespace Drako.Api.Controllers.Betting
         }
         
         [HttpPost]
-        [Route("bet")]
         [Route("bets")]
+        [Route("bet")]
         public async Task<IActionResult> PlaceBet([FromRoute] long id, [FromBody] BetResource model)
         {
             await using var uow = await _uowFactory.CreateAsync();

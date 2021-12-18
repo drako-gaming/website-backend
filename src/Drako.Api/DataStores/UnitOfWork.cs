@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Dapper;
 using Drako.Api.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Npgsql;
@@ -10,31 +11,54 @@ namespace Drako.Api.DataStores
     public class UnitOfWork : IAsyncDisposable 
     {
         private readonly IHubContext<UserHub, IUserHub> _userHub;
-
         private readonly List<Func<IHubContext<UserHub, IUserHub>, Task>> _commitActions = new();
-        
-        public NpgsqlConnection Connection { get; }
-        public NpgsqlTransaction Transaction { get; private set; }
+        private readonly NpgsqlConnection _connection;
+        private NpgsqlTransaction _transaction;
 
         private UnitOfWork(string connectionString, IHubContext<UserHub, IUserHub> userHub)
         {
             _userHub = userHub;
-            Connection = new NpgsqlConnection(connectionString);
+            _connection = new NpgsqlConnection(connectionString);
         }
 
         public static async Task<UnitOfWork> CreateInstance(string connectionString, IHubContext<UserHub, IUserHub> userHub)
         {
             var unitOfWork = new UnitOfWork(connectionString, userHub);
-            await unitOfWork.Connection.OpenAsync(); 
-            unitOfWork.Transaction = await unitOfWork.Connection.BeginTransactionAsync(); 
+            await unitOfWork._connection.OpenAsync(); 
+            unitOfWork._transaction = await unitOfWork._connection.BeginTransactionAsync(); 
             return unitOfWork;
         }
 
+        public async Task<IEnumerable<dynamic>> QueryAsync(string sql, object parameters = null)
+        {
+            return await _connection.QueryAsync(sql, parameters, _transaction);
+        }
+        
+        public async Task<IEnumerable<T>> QueryAsync<T>(string sql, object parameters = null)
+        {
+            return await _connection.QueryAsync<T>(sql, parameters, _transaction);
+        }
+
+        public async Task<int> ExecuteAsync(string sql, object parameters = null)
+        {
+            return await _connection.ExecuteAsync(sql, parameters, _transaction);
+        }
+
+        public async Task<T> ExecuteScalarAsync<T>(string sql, object parameters = null)
+        {
+            return await _connection.ExecuteScalarAsync<T>(sql, parameters, _transaction);
+        }
+
+        public async Task<SqlMapper.GridReader> QueryMultipleAsync(string sql, object parameters = null)
+        {
+            return await _connection.QueryMultipleAsync(sql, parameters, _transaction);
+        }
+        
         public async Task CommitAsync() 
         { 
             try 
             { 
-                await Transaction.CommitAsync();
+                await _transaction.CommitAsync();
                 foreach (var commitAction in _commitActions)
                 {
                     await commitAction(_userHub);
@@ -42,25 +66,25 @@ namespace Drako.Api.DataStores
             } 
             catch 
             { 
-                await Transaction.RollbackAsync(); 
+                await _transaction.RollbackAsync(); 
                 throw; 
             } 
             finally 
             { 
-                await Transaction.DisposeAsync(); 
+                await _transaction.DisposeAsync(); 
             } 
         }
 
         public async ValueTask DisposeAsync()
         {
-            if (Transaction != null) 
+            if (_transaction != null) 
             { 
-                await Transaction.DisposeAsync(); 
+                await _transaction.DisposeAsync(); 
             } 
   
-            if (Connection != null) 
+            if (_connection != null) 
             { 
-                await Connection.DisposeAsync(); 
+                await _connection.DisposeAsync(); 
             } 
         }
 

@@ -64,10 +64,10 @@ namespace Drako.Api.DataStores
                 WHERE cuc.user_twitch_id = @userTwitchId
                 ";
 
-            return await uow.Connection.ExecuteScalarAsync<long>(sql, new
-            {
-                userTwitchId,
-            }, uow.Transaction);
+            return await uow.ExecuteScalarAsync<long>(
+                sql,
+                new { userTwitchId }
+            );
         }
         
         public async Task AddCurrencyAsync(
@@ -118,10 +118,9 @@ namespace Drako.Api.DataStores
                 groupingId
             });
             var result = (
-                await uow.Connection.QueryAsync(
+                await uow.QueryAsync(
                     sql.RawSql,
-                    sql.Parameters,
-                    uow.Transaction
+                    sql.Parameters
                 )
             ).SingleOrDefault();
 
@@ -145,14 +144,13 @@ namespace Drako.Api.DataStores
             int limit = pageSize == 0 ? 20 : pageSize;
             int offset = pageNumber == 0 ? 0 : (pageNumber - 1) * limit;
 
-            var result = await uow.Connection.QueryAsync(
+            var result = await uow.QueryAsync(
                 sql,
                 new
                 {
                     limit,
                     offset
-                },
-                uow.Transaction
+                }
             );
 
             return result

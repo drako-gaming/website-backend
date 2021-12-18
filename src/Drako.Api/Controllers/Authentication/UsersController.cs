@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Drako.Api.Configuration;
 using Drako.Api.DataStores;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,13 +28,13 @@ namespace Drako.Api.Controllers.Authentication
         [HttpPost("presence")]
         public async Task<IActionResult> Presence()
         {
-            await _redis.SetAddAsync("presence", User.TwitchId());
-            await _redis.KeyExpireAsync("presence", TimeSpan.FromHours(1));
+            await _redis.SetAddAsync(RedisKeys.Presence, User.TwitchId());
+            await _redis.KeyExpireAsync(RedisKeys.Presence, TimeSpan.FromHours(1));
             return NoContent();
         }
 
         [HttpPost("give/{userId}")]
-        [Authorize(Roles = "moderator")]
+        [Authorize(Roles = Roles.Moderator)]
         public async Task<IActionResult> GiveCoins([FromRoute] string userId, [FromQuery] long amount)
         {
             await using var uow = await _uowFactory.CreateAsync();
