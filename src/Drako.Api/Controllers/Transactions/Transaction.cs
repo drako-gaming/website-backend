@@ -10,6 +10,5 @@ namespace Drako.Api.Controllers.Transactions
         public long Amount { get; set; }
         public long Balance { get; set; }
         public string Reason { get; set; }
-        public string UniqueId { get; set; }
     }
 }

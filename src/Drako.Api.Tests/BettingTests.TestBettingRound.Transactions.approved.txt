@@ -1,29 +1,26 @@
 ﻿[
   {
-    "Id": -1,
-    "UserId": "123",
-    "Date": "0001-01-01T00:00:00",
-    "Amount": -100,
-    "Balance": 0,
-    "Reason": "Bet placed",
-    "UniqueId": null
+    "id": -1,
+    "userId": "123",
+    "date": "0001-01-01T00:00:00",
+    "amount": "-100",
+    "balance": 0,
+    "reason": "Bet placed"
   },
   {
-    "Id": -1,
-    "UserId": "124",
-    "Date": "0001-01-01T00:00:00",
-    "Amount": -200,
-    "Balance": 0,
-    "Reason": "Bet placed",
-    "UniqueId": null
+    "id": -1,
+    "userId": "124",
+    "date": "0001-01-01T00:00:00",
+    "amount": "-200",
+    "balance": 0,
+    "reason": "Bet placed"
   },
   {
-    "Id": -1,
-    "UserId": "124",
-    "Date": "0001-01-01T00:00:00",
-    "Amount": 300,
-    "Balance": 0,
-    "Reason": "Betting payout",
-    "UniqueId": null
+    "id": -1,
+    "userId": "124",
+    "date": "0001-01-01T00:00:00",
+    "amount": "300",
+    "balance": 0,
+    "reason": "Betting payout"
   }
 ]

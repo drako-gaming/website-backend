@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Drako.Api.Controllers.Transactions;
 using Drako.Api.Controllers.Webhooks;
 using Drako.Api.Tests.Support;
 using Drako.Api.TwitchApiClient;
@@ -54,9 +56,8 @@ namespace Drako.Api.Tests
                 new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );
 
-            var transactionResponseContent = await transactionsResponse.Content();
             transactionsResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-            transactionResponseContent.ShouldBe("[]");
+            await transactionsResponse.Content.Approve<IList<Transaction>>("transactions", Scrubbers.ScrubTransactions);
         }
         
         [Fact]
@@ -94,9 +95,8 @@ namespace Drako.Api.Tests
                 new { userid = TestIds.Users.John, uniqueid = $"redemption:{rewardEventId}" }
             );
 
-            var transactionResponseContent = await transactionsResponse.Content();
             transactionsResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
-            transactionResponseContent.ShouldBe("[]");
+            await transactionsResponse.Content.Approve<IList<Transaction>>("transactions", Scrubbers.ScrubTransactions);
         }
     }
 }

@@ -1,23 +1,23 @@
 ﻿{
-  "Id": -1,
-  "Objective": "This is a test bet.",
-  "MaximumBet": null,
-  "Options": [
+  "id": -1,
+  "objective": "This is a test bet.",
+  "maximumBet": null,
+  "options": [
     {
-      "Description": "She will live",
-      "Id": -1,
-      "Odds": null,
-      "Total": 100
+      "description": "She will live",
+      "id": -1,
+      "odds": null,
+      "total": "100"
     },
     {
-      "Description": "She will die",
-      "Id": -1,
-      "Odds": null,
-      "Total": 200
+      "description": "She will die",
+      "id": -1,
+      "odds": null,
+      "total": "200"
     }
   ],
-  "Status": "Done",
-  "WinningOption": -1,
-  "Total": 300,
-  "AlreadyBet": false
+  "status": "Done",
+  "winningOption": -1,
+  "total": "300",
+  "alreadyBet": false
 }

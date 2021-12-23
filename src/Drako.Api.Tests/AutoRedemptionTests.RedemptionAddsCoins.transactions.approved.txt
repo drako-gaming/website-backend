@@ -1,0 +1,10 @@
+﻿[
+  {
+    "id": -1,
+    "userId": "123",
+    "date": "0001-01-01T00:00:00",
+    "amount": "100",
+    "balance": 0,
+    "reason": "Reward 2 redeemed."
+  }
+]

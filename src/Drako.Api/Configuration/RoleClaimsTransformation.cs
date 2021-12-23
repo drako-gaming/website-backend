@@ -27,10 +27,6 @@ namespace Drako.Api.Configuration
         
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-            if (principal.Identities.Any(x => x.AuthenticationType == RolesAuthenticationType))
-            {
-                return principal;
-            }
             var twitchId = principal.TwitchId();
             var isOwner = _twitchOptions.Value.OwnerUserId == twitchId;
             var isModerator = isOwner ||

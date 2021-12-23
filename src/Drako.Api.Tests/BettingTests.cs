@@ -30,36 +30,33 @@ namespace Drako.Api.Tests
 
             var response = await ownerClient.OpenBetting();
             
-            var bettingOpenResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.Created);
-            bettingOpenResponse.Approve("OpenBetting", ScrubBettingResource);
+            var bettingOpenResponse = await response.Content.Approve<BettingResource>(
+                "OpenBetting",
+                ScrubBettingResource
+            );
 
             await ownerClient.GiveCurrencyAsync(TestIds.Users.John, 100);
             await ownerClient.GiveCurrencyAsync(TestIds.Users.Mary, 200);
             
             response = await johnClient.PlaceBetAsync(bettingOpenResponse.Id, bettingOpenResponse.Options[0].Id, 100);
-            var johnBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            johnBetResponse.Approve("johnBet", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("johnBet", ScrubBettingResource);
             
             response = await maryClient.PlaceBetAsync(bettingOpenResponse.Id, bettingOpenResponse.Options[1].Id, 200);
-            var maryBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            maryBetResponse.Approve("maryBet", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("maryBet", ScrubBettingResource);
 
             response = await ownerClient.CloseBetting(bettingOpenResponse.Id);
-            var closeBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            closeBetResponse.Approve("CloseBetting", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("CloseBetting", ScrubBettingResource);
 
             response = await ownerClient.ChooseWinner(bettingOpenResponse.Id, bettingOpenResponse.Options[1].Id);
-            var chooseWinnerResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
+            await response.Content.Approve<BettingResource>("ChooseWinner", ScrubBettingResource);
 
             var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
-            var transactions = await transactionsResponse.Content<List<Transaction>>();
-            transactions.Approve("Transactions", ScrubTransactions);
+            await transactionsResponse.Content.Approve<IList<Transaction>>("Transactions", Scrubbers.ScrubTransactions);
         }
 
         [Fact]
@@ -72,31 +69,26 @@ namespace Drako.Api.Tests
 
             var response = await ownerClient.OpenBetting();
             
-            var bettingOpenResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.Created);
-            bettingOpenResponse.Approve("OpenBetting", ScrubBettingResource);
+            var bettingOpenResponse = await response.Content.Approve<BettingResource>("OpenBetting", ScrubBettingResource);
 
             await ownerClient.GiveCurrencyAsync(TestIds.Users.John, 100);
             await ownerClient.GiveCurrencyAsync(TestIds.Users.Mary, 200);
             
             response = await johnClient.PlaceBetAsync(bettingOpenResponse.Id, bettingOpenResponse.Options[0].Id, 100);
-            var johnBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            johnBetResponse.Approve("johnBet", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("johnBet", ScrubBettingResource);
             
             response = await maryClient.PlaceBetAsync(bettingOpenResponse.Id, bettingOpenResponse.Options[1].Id, 200);
-            var maryBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            maryBetResponse.Approve("maryBet", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("maryBet", ScrubBettingResource);
 
             response = await ownerClient.CancelBetting(bettingOpenResponse.Id);
-            var closeBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            closeBetResponse.Approve("CancelBetting", ScrubBettingResource);
+            await response.Content.Approve<BetResource>("CancelBetting", ScrubBettingResource);
 
             var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
-            var transactions = await transactionsResponse.Content<List<Transaction>>();
-            transactions.Approve("Transactions", ScrubTransactions);
+            await transactionsResponse.Content.Approve<IList<Transaction>>("Transactions", Scrubbers.ScrubTransactions);
         }
 
         [Fact]
@@ -109,56 +101,42 @@ namespace Drako.Api.Tests
 
             var response = await ownerClient.OpenBetting();
             
-            var bettingOpenResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.Created);
-            bettingOpenResponse.Approve("OpenBetting", ScrubBettingResource);
+            var bettingOpenResponse = await response.Content.Approve<BettingResource>("OpenBetting", ScrubBettingResource);
 
             response = await ownerClient.CloseBetting(bettingOpenResponse.Id);
-            var closeBetResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            closeBetResponse.Approve("CloseBetting", ScrubBettingResource);
+            await response.Content.Approve<BettingResource>("CloseBetting", ScrubBettingResource);
 
             response = await ownerClient.ChooseWinner(bettingOpenResponse.Id, bettingOpenResponse.Options[1].Id);
-            var chooseWinnerResponse = await response.Content<BettingResource>();
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
-            chooseWinnerResponse.Approve("ChooseWinner", ScrubBettingResource);
+            await response.Content.Approve<BettingResource>("ChooseWinner", ScrubBettingResource);
 
             var transactionsResponse = await ownerClient.GetAsync("/transactions?groupingId=Bet-" + bettingOpenResponse.Id);
-            var transactions = await transactionsResponse.Content<List<Transaction>>();
-            transactions.Approve("Transactions", ScrubTransactions);
+            await transactionsResponse.Content.Approve<IList<Transaction>>("Transactions", Scrubbers.ScrubTransactions);
         }
         
-        private void ScrubBettingResource(BettingResource resource)
+        private void ScrubBettingResource(dynamic resource)
         {
-            if (resource.Id > 0)
+            if (resource.id > 0)
             {
-                resource.Id = -1;
+                resource.id = -1;
             }
 
-            if (resource.WinningOption != null && resource.WinningOption != 0)
+            if (resource.winningOption != null && resource.winningOption != 0)
             {
-                resource.WinningOption = -1;
+                resource.winningOption = -1;
             }
             
-            if (resource.Options != null)
+            if (resource.options != null)
             {
-                foreach (var bettingOption in resource.Options)
+                foreach (var bettingOption in resource.options)
                 {
-                    if (bettingOption.Id > 0)
+                    if (bettingOption.id > 0)
                     {
-                        bettingOption.Id = -1;
+                        bettingOption.id = -1;
                     }
                 }
-            }
-        }
-
-        private void ScrubTransactions(IEnumerable<Transaction> transactions)
-        {
-            foreach (var transaction in transactions)
-            {
-                transaction.Id = -1;
-                transaction.Date = DateTime.MinValue;
-                transaction.Balance = 0;
             }
         }
     }
