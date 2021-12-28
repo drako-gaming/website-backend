@@ -67,7 +67,17 @@ namespace Drako.Api
                         JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString;
                     cfg.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
                 });
-            services.AddSignalR();
+            services.AddSignalR()
+                .AddJsonProtocol(
+                    cfg =>
+                    {
+                        cfg.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                        cfg.PayloadSerializerOptions.NumberHandling =
+                            JsonNumberHandling.WriteAsString | JsonNumberHandling.AllowReadingFromString;
+                        cfg.PayloadSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+
+                    }
+                );
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Drako.Api", Version = "v1" });
