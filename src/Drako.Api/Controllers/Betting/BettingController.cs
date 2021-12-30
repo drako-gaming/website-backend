@@ -151,14 +151,16 @@ namespace Drako.Api.Controllers.Betting
 
             var winners = result
                 .Where(bet => bet.OptionId == winner)
-                .ToArray();
+                .ToDictionary(x => x.UserTwitchId);
 
             var winningOdds = winningOption.OddsImpl;
-            decimal multiplier = winningOdds.WinMultiplier(totalBets, winners.Sum(x => x.Amount));
+            decimal multiplier = winningOdds.WinMultiplier(totalBets, winners.Values.Sum(x => x.Amount));
 
             var awards = await _bettingDataStore.SetWinnerAsync(uow, game.Id, winner, multiplier);
             foreach (var winningBet in awards)
             {
+                var bet = winners[winningBet.UserTwitchId];
+                bet.Awarded = winningBet.Awarded;
                 await _userDataStore.AddCurrencyAsync(
                     uow,
                     winningBet.UserTwitchId,
@@ -168,6 +170,8 @@ namespace Drako.Api.Controllers.Betting
                     "Betting payout",
                     groupingId: $"Bet-{game.Id}"
                 );
+
+                uow.OnCommit(async hub => await hub.Clients.User(winningBet.UserTwitchId).BetChanged(bet));
             }
         }
 
@@ -245,6 +249,7 @@ namespace Drako.Api.Controllers.Betting
                 groupingId: $"Bet-{game.Id}"
             );
             game = await _bettingDataStore.GetBetGameAsync(uow, id, User.TwitchId());
+            uow.OnCommit(async hub => await hub.Clients.User(User.TwitchId()).BetChanged(model));
             uow.OnCommit(async hub => await hub.Clients.All.BetStatusChanged(game));
             await uow.CommitAsync();
 
