@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Dapper;
 using Drako.Api.Configuration;
 using Drako.Api.Controllers.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -68,6 +69,65 @@ namespace Drako.Api.DataStores
                 sql,
                 new { userTwitchId }
             );
+        }
+
+        public async Task BulkAddCurrencyAsync(
+            UnitOfWork uow,
+            IReadOnlyList<string> userTwitchIds,
+            long amount,
+            string reason,
+            string groupingId = null
+        )
+        {
+            const string sqlTemplate = @"
+                WITH up AS (
+                    INSERT INTO users (user_twitch_id, login_name, display_name, balance, last_updated)
+                    SELECT userTwitchId, 'user', 'user', @amount, @date
+                    FROM (SELECT userTwitchId FROM unnest(@userTwitchIds) userTwitchId) as u
+                    ON CONFLICT (user_twitch_id) DO UPDATE
+                    SET balance = users.balance + @amount,
+                        last_updated = @date
+                    /**where**/
+                    RETURNING id, balance
+                ), i AS (
+                    INSERT INTO transactions (user_id, date, amount, balance, reason, unique_id, grouping_id)
+                    SELECT up.id, @date, @amount, up.balance, @reason, @uniqueId, @groupingId
+                    FROM up
+                    RETURNING id, user_id, balance
+                ), r AS (
+                    SELECT i.id, i.balance, u.user_twitch_id 
+                    FROM i
+                    INNER JOIN users u ON u.id = i.user_id
+                )
+                SELECT * FROM r;
+                ";
+
+            var builder = new SqlBuilder();
+
+            var sql = builder.AddTemplate(sqlTemplate, new
+            {
+                userTwitchIds = userTwitchIds.ToArray(),
+                amount,
+                reason,
+                date = DateTime.UtcNow,
+                uniqueId = (string)null,
+                groupingId
+            });
+            var result = await uow.QueryAsync(
+                sql.RawSql,
+                sql.Parameters
+            );
+
+            if (result != null)
+            {
+                foreach (var singleResult in result)
+                {
+                    uow.OnCommit(async hub =>
+                        await hub.Clients.User(singleResult.user_twitch_id)
+                            .CurrencyUpdated(singleResult.id, singleResult.balance)
+                    );
+                }
+            }
         }
         
         public async Task AddCurrencyAsync(

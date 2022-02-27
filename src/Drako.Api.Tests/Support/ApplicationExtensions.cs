@@ -27,6 +27,16 @@ namespace Drako.Api.Tests.Support
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             return client;
         }
+
+        [return: NotNull]
+        public static async Task<HttpResponseMessage> CallPresence(this HttpClient client)
+        {
+            var response = await client.PostAsync(
+                "/presence",
+                null
+            );
+            return response;
+        }
         
         [return: NotNull]
         public static async Task<HttpResponseMessage> CallWebhook(this Application application, string topic, object payload)
